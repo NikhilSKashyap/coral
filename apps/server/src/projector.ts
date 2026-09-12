@@ -1,4 +1,4 @@
-import type { DomainEvent } from '@noesis/core';
+import type { DomainEvent } from '@coral/core';
 import type { TxClient } from './db.js';
 
 /**

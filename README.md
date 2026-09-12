@@ -1,4 +1,4 @@
-# Noesis — Epistemic Research Studio
+# Coral — Epistemic Research Studio
 
 A research workspace that will not do the student's thinking. The refusal is the
 data model and the write path, not a policy in a prompt.
@@ -33,8 +33,8 @@ Open http://localhost:5173, press **New question**, and build a map.
 
 ```bash
 pnpm test                                   # 21 unit tests over the invariants
-pnpm --filter @noesis/server test:db        # the guards Postgres enforces
-pnpm --filter @noesis/server test:e2e       # 26 checks over a whole session
+pnpm --filter @coral/server test:db        # the guards Postgres enforces
+pnpm --filter @coral/server test:e2e       # 26 checks over a whole session
 ```
 
 The end-to-end script drives a full session against a running server: a student

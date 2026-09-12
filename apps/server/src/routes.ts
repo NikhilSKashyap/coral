@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   EVENT_TYPES, RELATIONS, SOURCE_ACCESS, THOUGHT_TYPES, commentDrift,
   type CommentId, type ProjectId,
-} from '@noesis/core';
+} from '@coral/core';
 import { FIXTURE_PAPERS } from './fixtures.js';
 import { appendEvent, createProject, listProjects, loadProject } from './repo.js';
 

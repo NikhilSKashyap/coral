@@ -1,5 +1,5 @@
 -- ============================================================================
--- Noesis / Epistemic Research Studio - slice 00
+-- Coral / Epistemic Research Studio - slice 00
 --
 -- The `event` table is the source of truth. Every other table in this file is a
 -- projection of it and can be dropped and rebuilt by replaying the log.

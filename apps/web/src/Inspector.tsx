@@ -4,7 +4,7 @@ import {
   type CommentId, type HintLevel, type MoveId, type ObjectId, type PassageId,
   type Relation, type RelationId, type SnapshotId, type Source, type ThoughtType,
   type VersionId,
-} from '@noesis/core';
+} from '@coral/core';
 import { useStudio, uuid } from './store.js';
 
 type Tab = 'build' | 'sources' | 'coach' | 'review';

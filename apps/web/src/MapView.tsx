@@ -6,7 +6,7 @@ import {
   type NodeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { ObjectId, ProjectState, Thought, ThoughtType } from '@noesis/core';
+import type { ObjectId, ProjectState, Thought, ThoughtType } from '@coral/core';
 import { useStudio } from './store.js';
 
 /** Each type gets a colour role, so the map reads by kind before it reads by text. */

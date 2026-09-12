@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 
 export const connectionString =
-  process.env['DATABASE_URL'] ?? 'postgres://noesis:noesis@localhost:5433/noesis';
+  process.env['DATABASE_URL'] ?? 'postgres://coral:coral@localhost:5433/coral';
 
 export const pool = new Pool({ connectionString });
 

@@ -2,7 +2,7 @@ import {
   append, initialState, observableRecord, replay,
   type Actor, type ActorId, type DomainEvent, type EventId, type ObjectId,
   type ProjectId, type ProjectState,
-} from '@noesis/core';
+} from '@coral/core';
 import { pool, withTransaction } from './db.js';
 import { project } from './projector.js';
 
@@ -69,7 +69,7 @@ export interface AppendInput {
 /**
  * The only write path.
  *
- * Guards run first, in `@noesis/core`, exactly as they do in the browser. The
+ * Guards run first, in `@coral/core`, exactly as they do in the browser. The
  * event row goes in next, and the projection last, so a constraint the database
  * enforces rolls the whole append back rather than leaving the log ahead of the
  * tables.

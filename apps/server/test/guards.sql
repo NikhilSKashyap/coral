@@ -1,7 +1,7 @@
 -- Proves the two guards that live in the database rather than in application
 -- code. Run against a freshly migrated database:
 --
---   pnpm db:up && pnpm db:migrate && pnpm --filter @noesis/server test:db
+--   pnpm db:up && pnpm db:migrate && pnpm --filter @coral/server test:db
 --
 -- Cases 1-5 must each print an ERROR. Case 6 must succeed and leave one row.
 -- A silent run is a failing run.

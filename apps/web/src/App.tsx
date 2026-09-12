@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Actor, ProjectId } from '@noesis/core';
+import type { Actor, ProjectId } from '@coral/core';
 import FocusView from './FocusView.js';
 import Inspector from './Inspector.js';
 import MapView from './MapView.js';
@@ -34,7 +34,7 @@ export default function App() {
         <pre className="mono field" style={{ whiteSpace: 'pre-wrap' }}>
 {`pnpm db:up
 pnpm db:migrate
-pnpm --filter @noesis/server start`}
+pnpm --filter @coral/server start`}
         </pre>
       </div>
     );

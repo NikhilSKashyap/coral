@@ -1,4 +1,4 @@
-import type { PassageProvenance, SourceAccess } from '@noesis/core';
+import type { PassageProvenance, SourceAccess } from '@coral/core';
 
 /**
  * Stand-in search results until real retrieval lands in slice 03.

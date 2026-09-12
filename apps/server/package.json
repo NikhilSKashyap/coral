@@ -1,5 +1,5 @@
 {
-  "name": "@noesis/server",
+  "name": "@coral/server",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,12 +9,12 @@
     "migrate": "tsx src/migrate.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json --noEmit false --outDir dist",
-    "test:db": "docker exec -i noesis-db psql -U noesis -d noesis -q < test/guards.sql",
+    "test:db": "docker exec -i coral-db psql -U coral -d coral -q < test/guards.sql",
     "test:e2e": "tsx test/e2e.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",
-    "@noesis/core": "workspace:*",
+    "@coral/core": "workspace:*",
     "fastify": "^5.2.1",
     "pg": "^8.13.1"
   },

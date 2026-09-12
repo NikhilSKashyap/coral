@@ -1,5 +1,5 @@
 {
-  "name": "@noesis/web",
+  "name": "@coral/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@noesis/core": "workspace:*",
+    "@coral/core": "workspace:*",
     "@xyflow/react": "^12.11.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

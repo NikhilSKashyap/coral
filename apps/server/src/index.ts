@@ -1,6 +1,6 @@
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
-import { InvariantViolation } from '@noesis/core';
+import { InvariantViolation } from '@coral/core';
 import { pool } from './db.js';
 import { ensureSeats } from './repo.js';
 import { routes } from './routes.js';
@@ -41,4 +41,4 @@ app.get('/health', async () => {
 await ensureSeats();
 const port = Number(process.env['PORT'] ?? 8787);
 await app.listen({ port, host: '0.0.0.0' });
-console.log(`noesis server on http://localhost:${port}`);
+console.log(`coral server on http://localhost:${port}`);

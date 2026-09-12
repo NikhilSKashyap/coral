@@ -1,6 +1,6 @@
 import type {
   Actor, DomainEvent, ObservableRecord, ProjectId, ProjectState,
-} from '@noesis/core';
+} from '@coral/core';
 
 const BASE = import.meta.env['VITE_API'] ?? 'http://localhost:8787';
 

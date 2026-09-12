@@ -3,7 +3,7 @@ import {
   initialState,
   type Actor, type DomainEvent, type ObjectId, type ObservableRecord,
   type ProjectId, type ProjectState,
-} from '@noesis/core';
+} from '@coral/core';
 import {
   Refused, createProject, emit, listProjects, loadDrift, loadProject, searchLiterature,
   type Drift, type ProjectSummary,

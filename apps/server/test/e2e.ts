@@ -3,8 +3,8 @@
  * an instructor comment. Every write goes over HTTP through the real guard path.
  *
  *   pnpm db:up && pnpm db:migrate
- *   pnpm --filter @noesis/server start
- *   pnpm --filter @noesis/server test:e2e
+ *   pnpm --filter @coral/server start
+ *   pnpm --filter @coral/server test:e2e
  *
  * Lines marked REFUSED are the point of the exercise: each one must fail, with a
  * 422 and the name of the invariant that stopped it. A run where everything
@@ -86,7 +86,7 @@ async function refuse(
 }
 
 async function main(): Promise<void> {
-  console.log(`\nnoesis end-to-end  ${BASE}\n`);
+  console.log(`\ncoral end-to-end  ${BASE}\n`);
 
   console.log('project');
   const created = await post<View>('/projects', {

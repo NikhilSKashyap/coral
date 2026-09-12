@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ancestorsOf, parentsOf, versionsOf, type ObjectId } from '@noesis/core';
+import { ancestorsOf, parentsOf, versionsOf, type ObjectId } from '@coral/core';
 import { useStudio, uuid } from './store.js';
-import type { VersionId } from '@noesis/core';
+import type { VersionId } from '@coral/core';
 
 /**
  * One thought at a time, with the path that led to it.

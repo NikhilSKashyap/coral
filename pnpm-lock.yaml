@@ -14,12 +14,12 @@ importers:
 
   apps/server:
     dependencies:
+      '@coral/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@fastify/cors':
         specifier: ^10.0.2
         version: 10.1.0
-      '@noesis/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       fastify:
         specifier: ^5.2.1
         version: 5.12.4
@@ -42,7 +42,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@noesis/core':
+      '@coral/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@xyflow/react':
