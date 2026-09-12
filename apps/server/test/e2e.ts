@@ -77,6 +77,21 @@ async function post<T>(path: string, body?: unknown): Promise<{ status: number; 
   return { status: res.status, json: (await res.json()) as T };
 }
 
+interface AssignmentShape {
+  assignmentId: string;
+  title: string;
+  publishedAt: string | null;
+}
+
+interface DashboardShape {
+  assignment: { title: string } | null;
+  rows: Array<{
+    projectId: string; title: string; submittedAt: string | null; checkpoints: number;
+    requirements: Array<{ id: string; label: string; met: boolean; detail: string }>;
+    requirementsMet: boolean; openComments: number; staleComments: number;
+  }>;
+}
+
 interface BriefLineShape {
   objectId: string | null;
   text: string;
@@ -661,6 +676,150 @@ async function synthesisAndBrief(): Promise<void> {
   else bad('citations resolve', `${unresolved.length} did not`);
 }
 
+
+/**
+ * Instructor review, slice 06.
+ *
+ * The claim the slice has to prove is in the plan: a comment survives five
+ * student revisions and still makes sense. It also covers the loop back — a
+ * student closes a comment by revising, and cannot close one by agreeing.
+ */
+async function instructorReview(): Promise<void> {
+  console.log('\nassignment');
+  const assignment = await post<AssignmentShape>('/assignments', {
+    title: 'Literature synthesis, checkpoint 1',
+    instructions: 'Build a reasoning map and submit it.',
+    requirements: { sources: 1, counterArgument: true, aiProvenance: true },
+    publish: true,
+  });
+  if (assignment.status === 201 && assignment.json.publishedAt !== null) {
+    ok('an assignment is authored and published', assignment.json.title);
+  } else {
+    bad('assignment', `status ${assignment.status}`);
+    return;
+  }
+
+  const created = await post<View>('/projects', {
+    title: 'AI and independent reasoning', group: 'AI & Learning',
+  });
+  const id = created.json.projectId;
+  await post<{ ok: boolean }>(`/projects/${id}/assignment`, {
+    assignmentId: assignment.json.assignmentId,
+  });
+
+  const claim = uuid();
+  const v1 = uuid();
+  await emit(id, 'student', 'thought.created', {
+    objectId: claim, versionId: v1, type: 'CLAIM',
+    text: 'Drafting with AI narrows the hypotheses students try.',
+    note: '', position: { x: 0, y: 0 },
+  });
+
+  console.log('\nprogress before a submission');
+  const before = await get<DashboardShape>(`/dashboard?assignment=${assignment.json.assignmentId}`);
+  const row = before.rows.find((r) => r.projectId === id);
+  if (row === undefined) { bad('the project appears on the dashboard', 'not listed'); return; }
+
+  if (row.submittedAt === null && row.checkpoints === 0) ok('it shows as not yet submitted');
+  else bad('not yet submitted', `${String(row.checkpoints)} checkpoints`);
+
+  const sources = row.requirements.find((r) => r.id === 'sources');
+  if (sources?.met === false) ok('an unmet requirement says what is missing', sources.detail);
+  else bad('unmet requirement', JSON.stringify(sources));
+
+  const provenance = row.requirements.find((r) => r.id === 'ai_provenance');
+  if (provenance?.met === true) ok('AI provenance is met structurally', 'nothing to remember to attach');
+  else bad('ai provenance', JSON.stringify(provenance));
+
+  for (const check of row.requirements) {
+    if (/good|strong|weak|poor|excellent|grade|score/i.test(check.detail)) {
+      bad('the dashboard grades nobody', check.detail);
+      return;
+    }
+  }
+  ok('every figure is a count, and none of them is a mark');
+
+  console.log('\ncheckpoint and comment');
+  const snapshot = uuid();
+  await emit(id, 'student', 'checkpoint.submitted', {
+    snapshotId: snapshot, assignmentId: assignment.json.assignmentId,
+    entries: [{ objectId: claim, versionId: v1 }],
+  });
+
+  const commentId = uuid();
+  const commented = await emit(id, 'instructor', 'comment.created', {
+    commentId, snapshotId: snapshot, objectId: claim, versionId: v1,
+    kind: 'mark_for_revision',
+    body: 'Which students, and narrows compared with what?',
+  });
+  if (commented.status === 200) ok('an instructor marks it for revision');
+  else bad('comment', `status ${commented.status}`);
+
+  // The loop is a loop, not a dismiss button.
+  await refuse('closing a comment without revising', id, 'student', 'comment.resolved', {
+    commentId, byVersionId: v1,
+  });
+
+  console.log('\nfive revisions later');
+  const texts = [
+    'Drafting with AI narrows the hypotheses graduate students try.',
+    'Drafting with AI narrows the hypotheses graduate students try unaided.',
+    'Drafting with AI narrows the framings graduate students try unaided.',
+    'Drafting with AI narrows the framings graduate students reach unaided.',
+    'Early drafting with AI narrows the framings graduate students reach unaided.',
+  ];
+  let parent = v1;
+  let last = v1;
+  for (const text of texts) {
+    last = uuid();
+    await emit(id, 'student', 'thought.revised', {
+      objectId: claim, versionId: last, parentVersionId: parent, text, note: '',
+    });
+    parent = last;
+  }
+
+  const drifted = await get<{ drift: Array<{ commentId: string; versionsSince: number; stale: boolean }> }>(
+    `/projects/${id}/drift`,
+  );
+  const d = drifted.drift.find((x) => x.commentId === commentId);
+  if (d?.versionsSince === 5 && d.stale) {
+    ok('the comment survives five revisions', 'reviewed v1, now v6');
+  } else {
+    bad('drift after five revisions', JSON.stringify(d));
+  }
+
+  const after = await get<View>(`/projects/${id}`);
+  const live = after.state.thoughts[claim];
+  if (live?.objectId === claim && live.text === texts[4]) {
+    ok('and still points at the same object', 'one identity, six versions');
+  } else {
+    bad('identity across revisions', 'the object changed');
+  }
+  if ((after.state.versions[claim] ?? []).length === 6) ok('every version is still on the record');
+  else bad('versions kept', `${String((after.state.versions[claim] ?? []).length)}`);
+
+  console.log('\nthe loop back');
+  const resolved = await emit(id, 'student', 'comment.resolved', {
+    commentId, byVersionId: last,
+  });
+  if (resolved.status === 200) ok('the student closes it with the version that answers it');
+  else bad('resolve', `status ${resolved.status} ${resolved.json.message ?? ''}`);
+
+  await refuse('closing the same comment twice', id, 'student', 'comment.resolved', {
+    commentId, byVersionId: last,
+  });
+
+  const done = await get<DashboardShape>(`/dashboard?assignment=${assignment.json.assignmentId}`);
+  const finished = done.rows.find((r) => r.projectId === id);
+  if (finished?.openComments === 0 && finished.checkpoints === 1) {
+    ok('the dashboard shows the checkpoint in and the feedback closed');
+  } else {
+    bad('dashboard after the loop', JSON.stringify({
+      open: finished?.openComments, checkpoints: finished?.checkpoints,
+    }));
+  }
+}
+
 async function main(): Promise<void> {
   console.log(`\ncoral end-to-end  ${BASE}\n`);
 
@@ -668,6 +827,7 @@ async function main(): Promise<void> {
   await proposalPath();
   await claimsAndVersions();
   await synthesisAndBrief();
+  await instructorReview();
 
 
   console.log('project');

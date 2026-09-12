@@ -152,6 +152,45 @@ export function assertCommentTarget(event: DomainEvent, state: ProjectState): vo
   }
 }
 
+/**
+ * iv (cont). A student closes a comment by revising, not by agreeing with it.
+ *
+ * Resolving names the version that answers the comment, and for a student that
+ * version has to be one written after the one the instructor read. Without this
+ * the resolve loop is a dismiss button: a student could clear a mark for
+ * revision without touching the thought, and the instructor's panel would show
+ * feedback addressed that nothing addressed.
+ *
+ * An instructor may close anything at any version. Judging whether an objection
+ * has been met is exactly their job, and sometimes the answer arrives as a new
+ * object rather than as a new version of the old one.
+ */
+export function assertResolutionRevises(event: DomainEvent, state: ProjectState): void {
+  if (event.type !== 'comment.resolved') return;
+
+  const comment = state.comments[event.payload.commentId];
+  if (!comment) fail('iv.comment', `unknown comment ${event.payload.commentId}`);
+  if (comment.resolvedByVersionId !== null) {
+    fail('iv.comment', `comment ${event.payload.commentId} is already resolved`);
+  }
+
+  const versions = state.versions[comment.objectId] ?? [];
+  const answering = versions.findIndex((v) => v.versionId === event.payload.byVersionId);
+  if (answering < 0) {
+    fail('iv.comment', `version ${event.payload.byVersionId} was never recorded for ${comment.objectId}`);
+  }
+
+  if (event.actor === 'instructor') return;
+
+  const reviewed = versions.findIndex((v) => v.versionId === comment.versionId);
+  if (answering <= reviewed) {
+    fail(
+      'iv.comment',
+      `resolving names the version that answers the comment; ${event.payload.byVersionId} is not newer than the version reviewed`,
+    );
+  }
+}
+
 /** The log is append-only and gapless. Replay depends on it. */
 export function assertSequence(event: DomainEvent, state: ProjectState): void {
   if (event.seq !== state.seq + 1) {
@@ -173,4 +212,5 @@ export function checkInvariants(event: DomainEvent, state: ProjectState): void {
   assertStableIdentity(event, state);
   assertSnapshotIdentity(event, state);
   assertCommentTarget(event, state);
+  assertResolutionRevises(event, state);
 }

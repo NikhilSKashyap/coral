@@ -7,10 +7,12 @@ import {
 } from '@coral/core';
 import {
   Refused, acceptProposal, askCoach, createProject, detectClaims, dismissProposal, draftFrame,
-  emit, listProjects, listProviders, loadBrief, loadDrift, loadProject, retrievalStatus,
-  scanMap, searchLiterature, transcribePassage, uploadPaper, writeStage,
+  attachAssignment, createAssignment, emit, listAssignments, listProjects, listProviders,
+  loadBrief, loadDashboard, loadDrift, loadProject, retrievalStatus, scanMap, searchLiterature,
+  transcribePassage, uploadPaper, writeStage,
   type CoachResponse, type DetectResult, type Drift, type ProjectSummary, type ProviderId,
   type ProviderStatus, type ScanResult, type SearchResult,
+  type Assignment, type ProgressRow,
 } from './api.js';
 
 export type View = 'frame' | 'map' | 'focus' | 'brief';
@@ -43,6 +45,15 @@ interface Studio {
   detect: () => Promise<void>;
   lastDetection: DetectResult | null;
   scan: () => Promise<void>;
+  assignments: Assignment[];
+  progress: ProgressRow[];
+  refreshCourse: () => Promise<void>;
+  newAssignment: (body: {
+    title: string; instructions: string;
+    requirements: { sources: number; counterArgument: boolean; aiProvenance: boolean };
+  }) => Promise<void>;
+  attach: (assignmentId: string | null) => Promise<void>;
+  resolveComment: (commentId: string, byVersionId: string) => Promise<boolean>;
   lastScan: ScanResult | null;
   brief: Brief | null;
   omitted: Thought[];
@@ -84,6 +95,8 @@ export const useStudio = create<Studio>((set, get) => ({
   lastSearch: null,
   lastDetection: null,
   lastScan: null,
+  assignments: [],
+  progress: [],
   brief: null,
   omitted: [],
   fullTextAvailable: null,
@@ -362,6 +375,44 @@ export const useStudio = create<Studio>((set, get) => ({
     } catch {
       set({ brief: null, omitted: [] });
     }
+  },
+
+  /** Assignments and progress against them. Counts and dates, nothing else. */
+  refreshCourse: async () => {
+    try {
+      const [{ assignments }, { rows }] = await Promise.all([
+        listAssignments(), loadDashboard(),
+      ]);
+      set({ assignments, progress: rows });
+    } catch {
+      set({ assignments: [], progress: [] });
+    }
+  },
+
+  newAssignment: async (body) => {
+    set({ busy: true });
+    await createAssignment({ ...body, publish: true });
+    set({ busy: false });
+    await get().refreshCourse();
+  },
+
+  attach: async (assignmentId) => {
+    const { projectId } = get();
+    if (projectId === null) return;
+    await attachAssignment(projectId, assignmentId);
+    await get().refreshCourse();
+  },
+
+  /**
+   * Close a comment by naming the version that answers it.
+   *
+   * The server refuses a student's resolution that names a version the
+   * instructor already read, so this cannot become a dismiss button.
+   */
+  resolveComment: async (commentId, byVersionId) => {
+    const ok = await get().write('student', 'comment.resolved', { commentId, byVersionId });
+    if (ok) await get().refreshCourse();
+    return ok;
   },
 
   refreshRetrieval: async () => {

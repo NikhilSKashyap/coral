@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   EVENT_TYPES, RELATIONS, SOURCE_ACCESS, THOUGHT_TYPES, assembleBrief, commentDrift,
   omittedFrom,
-  type CommentId, type ProjectId, type ProposalId, type SourceId,
+  type AssignmentId, type CommentId, type ProjectId, type ProposalId, type SourceId,
 } from '@coral/core';
 import { coach, detectProviders, type CoachRequestBody } from './coach.js';
 import { StageOutOfOrder, draftProblemFrame, writeStage, type StageWriteBody } from './spine.js';
@@ -12,6 +12,10 @@ import {
 import { canRetrieveFullText, runSearch, type SearchBody } from './retrieval.js';
 import { detectClaims, type DetectBody } from './detection.js';
 import { scan, type ScanBody } from './scan.js';
+import {
+  attachProject, createAssignment, dashboard, listAssignments, publishAssignment,
+  type AssignmentInput,
+} from './assignments.js';
 import { MAX_PDF_BYTES, UploadRefused, transcribePassage, uploadPaper } from './upload.js';
 import { appendEvent, createProject, listProjects, loadProject } from './repo.js';
 
@@ -215,6 +219,39 @@ export async function routes(app: FastifyInstance): Promise<void> {
     const brief = assembleBrief(view.state);
     return { brief, omitted: omittedFrom(view.state, brief) };
   });
+
+  /* ---- the instructor's side -------------------------------------- */
+
+  app.get('/assignments', async () => ({ assignments: await listAssignments() }));
+
+  app.post<{ Body: AssignmentInput }>('/assignments', async (request, reply) =>
+    reply.status(201).send(await createAssignment(request.body ?? {})));
+
+  app.post<{ Params: { id: string } }>('/assignments/:id/publish', async (request) =>
+    publishAssignment(request.params.id as AssignmentId));
+
+  /**
+   * Progress at checkpoint level.
+   *
+   * Every figure is a count or a date. Without an assignment it reports every
+   * project, which is what a single-seat demo needs.
+   */
+  app.get<{ Querystring: { assignment?: string } }>('/dashboard', async (request) =>
+    dashboard((request.query.assignment ?? '') === ''
+      ? null
+      : request.query.assignment as AssignmentId));
+
+  /** Point a project at an assignment. The student's log is untouched. */
+  app.post<{ Params: { id: string }; Body: { assignmentId: string | null } }>(
+    '/projects/:id/assignment',
+    async (request) => {
+      await attachProject(
+        request.params.id as ProjectId,
+        (request.body?.assignmentId ?? null) as AssignmentId | null,
+      );
+      return { ok: true };
+    },
+  );
 
   /** Whether this machine can reach full text at all. */
   app.get('/retrieval', async () => ({

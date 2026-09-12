@@ -725,7 +725,16 @@ function ReviewTab() {
   const write = useStudio((s) => s.write);
   const role = useStudio((s) => s.role);
   const busy = useStudio((s) => s.busy);
+  const projectId = useStudio((s) => s.projectId);
+  const assignments = useStudio((s) => s.assignments);
+  const progress = useStudio((s) => s.progress);
+  const refreshCourse = useStudio((s) => s.refreshCourse);
+  const attach = useStudio((s) => s.attach);
+  const resolveComment = useStudio((s) => s.resolveComment);
 
+  useEffect(() => { void refreshCourse(); }, [refreshCourse, state.seq]);
+
+  const mine = progress.find((p) => p.projectId === projectId);
   const [body, setBody] = useState('');
   const snapshots = Object.values(state.snapshots);
   const latest = snapshots[snapshots.length - 1];
@@ -755,6 +764,42 @@ function ReviewTab() {
   return (
     <>
       <span className="eyebrow">Checkpoint</span>
+
+      {/*
+        What the assignment asks for, against what the map shows. Every line is
+        a count; none of them is a mark. The lane breakdown is deliberate that an
+        instructor sees checkpoint-level progress and nothing finer, so this is
+        the same figure a student can see about their own work.
+      */}
+      {mine !== undefined && mine.requirements.length > 0 && (
+        <div className="rows">
+          <span className="eyebrow" style={{ color: 'var(--text-3)' }}>
+            {mine.requirementsMet ? 'what the assignment asks for · all met' : 'what the assignment asks for'}
+          </span>
+          {mine.requirements.map((check) => (
+            <div key={check.id} className="row">
+              <div className="hd">
+                <span style={{ fontSize: 12.5 }}>{check.label}</span>
+                <span
+                  className="tag"
+                  style={{ color: check.met ? 'var(--ext)' : 'var(--text-3)' }}
+                >
+                  {check.met ? 'met' : 'not yet'}
+                </span>
+              </div>
+              <p>{check.detail}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {role === 'instructor' && (
+        <CourseBlock
+          assignments={assignments}
+          attached={mine !== undefined}
+          onAttach={(id) => void attach(id)}
+        />
+      )}
       {latest === undefined ? (
         <>
           <p className="empty">
@@ -770,7 +815,8 @@ function ReviewTab() {
       ) : (
         <>
           <p className="empty">
-            {latest.entries.length} objects frozen at {new Date(latest.at).toLocaleTimeString()}.
+            {latest.entries.length} object{latest.entries.length === 1 ? '' : 's'} frozen at{' '}
+            {new Date(latest.at).toLocaleTimeString()}.
             {role === 'student' && ' Submit again after revising to freeze a second time.'}
           </p>
           {role === 'student' && (
@@ -820,6 +866,38 @@ function ReviewTab() {
                 </div>
                 <p style={{ color: 'var(--text)' }}>{c.body}</p>
                 {/*
+                  The loop back. A student closes a comment by naming the version
+                  that answers it, and the server refuses one that is not newer
+                  than the version the instructor read — so this cannot become a
+                  dismiss button.
+                */}
+                {c.resolvedByVersionId === null && role === 'student' && target !== undefined && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      className="btn"
+                      disabled={busy || d === undefined || !d.stale}
+                      onClick={() => void resolveComment(c.commentId, target.currentVersionId)}
+                      title={d?.stale === true
+                        ? 'Close this with the version you have written since'
+                        : 'Revise the thought first; a comment is closed by a revision'}
+                    >
+                      {d?.stale === true ? 'I have addressed this' : 'Revise it first'}
+                    </button>
+                    {d?.stale !== true && (
+                      <span className="empty">
+                        A comment is closed by a revision, not by agreeing with it.
+                      </span>
+                    )}
+                  </div>
+                )}
+                {c.resolvedByVersionId !== null && (
+                  <span className="mono" style={{ fontSize: 10, color: 'var(--ext)' }}>
+                    resolved at v{(state.versions[c.objectId] ?? [])
+                      .findIndex((v) => v.versionId === c.resolvedByVersionId) + 1}
+                  </span>
+                )}
+
+                {/*
                   The comparison the identity-versus-version split has owed since
                   slice 00. Not "3 revisions since" but the words that moved
                   between what the instructor read and what is live now.
@@ -845,5 +923,110 @@ function ReviewTab() {
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Assignment authoring, and attaching this project to one.
+ *
+ * Small on purpose. An assignment is three requirements and some instructions;
+ * everything else an instructor wants to know is a count the dashboard already
+ * reports, and there is nowhere here to enter a mark.
+ */
+function CourseBlock({
+  assignments,
+  attached,
+  onAttach,
+}: {
+  assignments: Array<{ assignmentId: string; title: string; requirements: { sources: number; counterArgument: boolean; aiProvenance: boolean } }>;
+  attached: boolean;
+  onAttach: (id: string | null) => void;
+}) {
+  const newAssignment = useStudio((s) => s.newAssignment);
+  const busy = useStudio((s) => s.busy);
+
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [sources, setSources] = useState(2);
+  const [counter, setCounter] = useState(true);
+
+  return (
+    <div className="divide" style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span className="eyebrow">Assignment</span>
+
+      {assignments.length > 0 && (
+        <label className="lbl">
+          <span className="eyebrow">This project answers</span>
+          <select
+            className="field"
+            defaultValue=""
+            onChange={(e) => onAttach(e.target.value === '' ? null : e.target.value)}
+          >
+            <option value="">{attached ? 'Not attached' : 'Choose an assignment'}</option>
+            {assignments.map((a) => (
+              <option key={a.assignmentId} value={a.assignmentId}>{a.title}</option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {open ? (
+        <>
+          <input
+            className="field"
+            value={title}
+            placeholder="Literature synthesis, checkpoint 1"
+            onChange={(e) => setTitle(e.target.value)}
+            aria-label="Assignment title"
+          />
+          <textarea
+            className="field"
+            rows={2}
+            value={instructions}
+            placeholder="What you are asking them to do."
+            onChange={(e) => setInstructions(e.target.value)}
+            aria-label="Instructions"
+          />
+          <label className="lbl">
+            <span className="eyebrow">Sources that must be cited</span>
+            <input
+              className="field"
+              type="number"
+              min={0}
+              value={sources}
+              onChange={(e) => setSources(Math.max(0, Number(e.target.value)))}
+            />
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5 }}>
+            <input type="checkbox" checked={counter} onChange={(e) => setCounter(e.target.checked)} />
+            Require a counter-argument
+          </label>
+          <p className="empty">
+            The AI provenance record is always attached. Coral records what prompted every write
+            as it happens, so there is nothing for a student to remember.
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn primary"
+              disabled={busy || title.trim() === ''}
+              onClick={async () => {
+                await newAssignment({
+                  title: title.trim(),
+                  instructions: instructions.trim(),
+                  requirements: { sources, counterArgument: counter, aiProvenance: true },
+                });
+                setOpen(false); setTitle(''); setInstructions('');
+              }}
+            >
+              Create and publish
+            </button>
+            <button className="btn ghost" onClick={() => setOpen(false)}>Cancel</button>
+          </div>
+        </>
+      ) : (
+        <button className="btn ghost" onClick={() => setOpen(true)}>New assignment</button>
+      )}
+    </div>
   );
 }

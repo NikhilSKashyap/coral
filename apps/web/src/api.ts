@@ -1,6 +1,6 @@
 import type {
   Actor, Brief, DomainEvent, ObservableRecord, ProjectId, ProjectState, ProposalId,
-  Relation, SpineStage, Thought,
+  Relation, RequirementCheck, SpineStage, Thought,
 } from '@coral/core';
 
 const BASE = import.meta.env['VITE_API'] ?? 'http://localhost:8787';
@@ -140,6 +140,48 @@ export const scanMap = (id: ProjectId, provider?: ProviderId): Promise<ScanResul
 export const loadBrief = (
   id: ProjectId,
 ): Promise<{ brief: Brief; omitted: Thought[] }> => call(`/projects/${id}/brief`);
+
+export interface Assignment {
+  assignmentId: string;
+  title: string;
+  instructions: string;
+  dueAt: string | null;
+  requirements: { sources: number; counterArgument: boolean; aiProvenance: boolean };
+  publishedAt: string | null;
+  createdAt: string;
+}
+
+export interface ProgressRow {
+  projectId: string;
+  title: string;
+  assignmentId: string | null;
+  submittedAt: string | null;
+  checkpoints: number;
+  frozen: number;
+  requirements: RequirementCheck[];
+  requirementsMet: boolean;
+  openComments: number;
+  staleComments: number;
+  events: number;
+}
+
+export const listAssignments = (): Promise<{ assignments: Assignment[] }> => call('/assignments');
+
+export const createAssignment = (body: {
+  title: string; instructions: string;
+  requirements: { sources: number; counterArgument: boolean; aiProvenance: boolean };
+  publish: boolean;
+}): Promise<Assignment> => call('/assignments', json(body));
+
+export const attachAssignment = (
+  id: ProjectId,
+  assignmentId: string | null,
+): Promise<{ ok: boolean }> => call(`/projects/${id}/assignment`, json({ assignmentId }));
+
+export const loadDashboard = (
+  assignmentId?: string,
+): Promise<{ assignment: Assignment | null; rows: ProgressRow[] }> =>
+  call(`/dashboard${assignmentId === undefined ? '' : `?assignment=${assignmentId}`}`);
 
 export const retrievalStatus = (): Promise<{ fullText: boolean; detail: string }> =>
   call('/retrieval');

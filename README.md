@@ -34,9 +34,9 @@ Open http://localhost:5173, press **New question**, and build a map.
 ## Testing it
 
 ```bash
-pnpm test                                   # 141 unit tests: 98 over the invariants, 43 over the agent boundary
+pnpm test                                   # 154 unit tests: 111 over the invariants, 43 over the agent boundary
 pnpm --filter @coral/server test:db        # the five guards Postgres enforces
-pnpm --filter @coral/server test:e2e       # 111 checks over a whole session
+pnpm --filter @coral/server test:e2e       # 124 checks over a whole session
 pnpm --filter @coral/server probe "a query" # what retrieval returns, and at what level
 ```
 
@@ -89,6 +89,44 @@ slice: the ladder either teaches before it costs anything, or it does not teach.
 - The **Problem Frame** is a template fill over objects that already exist. The
   question is your thought word for word, and a refinement prompt you did not
   answer stays a gap rather than becoming prose.
+
+## A comment is closed by a revision, not by agreeing with it
+
+The instructor marks a thought for revision against the version a checkpoint
+froze. The student revises; the comment stays attached to the object and keeps
+pointing at what was read, so *reviewed v1, now v6* comes with the words that
+moved rather than a count.
+
+Closing it is the loop, and the loop is guarded. `assertResolutionRevises`
+refuses a student's resolution that names a version the instructor had already
+seen — without that, "resolve" is a dismiss button and the panel shows feedback
+addressed that nothing addressed. An instructor may close anything at any
+version, because judging whether an objection has been met is exactly their job,
+and sometimes the answer arrives as a new object rather than a new version of the
+old one.
+
+## Assignments ask for counts, never for a grade
+
+An assignment is not an event in any project's log. The log records one
+student's reasoning; an assignment exists before a project does and spans
+several, so it is an ordinary row, and the link runs the other way — a
+checkpoint names the assignment it answers.
+
+It can require a number of cited sources and a counter-argument. Every check
+reports what the map shows:
+
+```
+[ ] Cite at least 2 sources                0 cited as evidence, 3 on the list
+[ ] Explore at least one counter-argument  none on the map
+[x] Submit the AI provenance record        14 versions record the move that prompted them
+```
+
+The third is met structurally and says so. Coral records the coach move that
+preceded every write as it happens, so there is no version of a project in which
+a student forgot to declare AI use — it is not a hurdle they cleared, it is what
+the log already holds, and every one of those versions can be opened.
+
+There is nowhere in any of this to enter a mark.
 
 ## The brief is assembled, never generated
 
@@ -351,6 +389,9 @@ system implies text it never retrieved has nowhere to live.
 | `POST /projects/:id/detect` | which of the student's thoughts already read as claims |
 | `POST /projects/:id/scan` | gaps the graph can prove, plus contradictions if a model can look |
 | `GET /projects/:id/brief` | the Reasoning Brief, assembled from existing objects |
+| `GET` `POST /assignments` | list and author assignments |
+| `GET /dashboard` | progress at checkpoint level, each project against its own assignment |
+| `POST /projects/:id/assignment` | point a project at an assignment |
 | `POST /projects/:id/proposals/:pid/accept` | the student writes the thought a proposal stands for |
 | `POST /projects/:id/proposals/:pid/dismiss` | decline it, on the record |
 | `POST /projects/:id/search` | OpenAlex, with the fixture as the floor; an empty query uses the question |
@@ -416,10 +457,20 @@ claims pairwise on the cheap model and reports pairs without picking a winner.
 The Reasoning Brief assembles from existing objects, renders an empty section as
 an open gap rather than prose, and links every line to the object behind it.
 
-**Next.** Slice 06 is instructor review: assignment authoring, checkpoint
-requirements, the progress dashboard, and the resolve loop back to the student.
-The comment path and the diff it shows landed in slices 00 and 04, so what
-remains is assignments, the dashboard, and marking a comment resolved.
+**Done (slice 06).** Instructor review. Assignments are authored with
+requirements and published; a project is attached to one; the dashboard reports
+progress at checkpoint level with every figure a count or a date. The resolve
+loop closed: a student ends a comment by naming the version that answers it, and
+cannot end one by agreeing with it.
+
+**Next.** Slice 07 is the evidence panel — the counts already exist in
+`observableRecord` and are rendered in the sidebar, so what remains is making
+every number link to the objects behind it, and the thinking-evolution timeline
+over the log.
+
+Also outstanding from earlier slices: the three seats are still fixed rows, so
+there is no auth and one student. That is the next real piece of infrastructure
+rather than a slice.
 
 Known gaps: there is no auth, and the three seats are fixed rows. The Codex
 adapter is written but still unverified, since Codex is not installed here.
