@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap" />
+<style>
+:root,[data-theme="light"]{--bg:#F7F7F5;--surface:#FFFFFF;--surface-2:#FBFBFA;--text:#161616;--text-2:#717171;--text-3:#A5A5A1;--border:#E5E5E2;--border-2:#D6D6D2;--brand:#D7271C;--brand-soft:#FCF1F0;--danger:#B4231A;--ext:#2C6552;--ext-soft:#EFF4F2;--grid:#EAEAE7;}
+[data-theme="dark"]{--bg:#0D0D0C;--surface:#151514;--surface-2:#1B1B1A;--text:#F1F1EF;--text-2:#8E8E8A;--text-3:#5C5C58;--border:#262624;--border-2:#33332F;--brand:#E8443A;--brand-soft:#241412;--danger:#E8574C;--ext:#6FA891;--ext-soft:#17211D;--grid:#1A1A19;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;}
+a{color:var(--brand);text-decoration:none;}
+a:hover{color:var(--text);}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer;}
+textarea,input{font:inherit;color:inherit;}
+textarea{resize:none;}
+::selection{background:rgba(215,39,28,0.14);}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:6px;border:3px solid transparent;background-clip:content-box;}
+::-webkit-scrollbar-track{background:transparent;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" style="height:100vh;display:flex;min-width:1248px;background:var(--bg);color:var(--text);overflow-x:auto;overflow-y:hidden;font-size:14px;" onMouseMove="{{ onRootMove }}" onMouseUp="{{ onRootUp }}">
+
+  <aside style="width:248px;flex:0 0 248px;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface-2);">
+    <div style="padding:20px 18px 14px 18px;display:flex;align-items:center;gap:9px;">
+      <span style="width:9px;height:9px;border-radius:50%;background:var(--brand);display:block;"></span>
+      <span style="font-size:13px;font-weight:500;letter-spacing:-0.01em;">Epistemic Research Studio</span>
+    </div>
+
+    <div style="padding:0 10px;display:flex;flex-direction:column;gap:1px;">
+      <button style="display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;text-align:left;color:var(--text);" style-hover="background:var(--surface);">
+        <span style="width:15px;text-align:center;color:var(--brand);font-size:14px;line-height:1;">+</span>
+        <span style="font-size:13px;">New Question</span>
+      </button>
+      <button style="display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;text-align:left;color:var(--text-2);" style-hover="background:var(--surface);color:var(--text);">
+        <span style="width:15px;text-align:center;font-size:12px;line-height:1;">▤</span>
+        <span style="font-size:13px;">Library</span>
+      </button>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:14px 18px;"></div>
+
+    <div style="flex:1;overflow-y:auto;padding:0 10px 8px 10px;">
+      <div style="padding:6px 8px 4px 8px;font-size:10px;letter-spacing:0.09em;color:var(--text-3);font-weight:500;">PINNED</div>
+      <div style="display:flex;align-items:center;border-radius:8px;padding-right:4px;background:var(--surface);">
+        <button style="flex:1;text-align:left;padding:6px 8px;font-size:12.5px;border-radius:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-weight:500;">AI and independent reasoning</button>
+        <button onClick="{{ onTopicMenu }}" style="padding:2px 4px;color:var(--text-3);font-size:13px;line-height:1;" style-hover="color:var(--text);">⋯</button>
+      </div>
+
+      <div style="padding:14px 8px 4px 8px;font-size:10px;letter-spacing:0.09em;color:var(--text-3);font-weight:500;">PROJECTS</div>
+      <sc-for list="{{ projects }}" as="grp" hint-placeholder-count="2">
+        <div style="margin-bottom:2px;">
+          <button onClick="{{ grp.onToggle }}" style="display:flex;align-items:center;gap:6px;width:100%;padding:5px 8px;border-radius:8px;color:var(--text-2);" style-hover="background:var(--surface);color:var(--text);">
+            <span style="{{ grp.caretStyle }}">›</span>
+            <span style="font-size:12.5px;">{{ grp.name }}</span>
+          </button>
+          <sc-if value="{{ grp.open }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:1px;padding-left:10px;">
+              <sc-for list="{{ grp.items }}" as="row" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;border-radius:8px;padding-right:4px;" style-hover="background:var(--surface);">
+                  <button style="flex:1;text-align:left;padding:6px 8px;font-size:12.5px;border-radius:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-2);">{{ row }}</button>
+                  <button onClick="{{ onTopicMenu }}" style="padding:2px 4px;color:var(--text-3);font-size:13px;line-height:1;" style-hover="color:var(--text);">⋯</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+
+      <div style="padding:14px 8px 4px 8px;font-size:10px;letter-spacing:0.09em;color:var(--text-3);font-weight:500;">RESEARCH HISTORY</div>
+      <sc-for list="{{ history }}" as="grp" hint-placeholder-count="3">
+        <div style="margin-bottom:6px;">
+          <div style="padding:4px 8px;font-size:10px;letter-spacing:0.07em;color:var(--text-3);">{{ grp.label }}</div>
+          <sc-for list="{{ grp.items }}" as="row" hint-placeholder-count="1">
+            <div style="display:flex;align-items:center;border-radius:8px;padding-right:4px;" style-hover="background:var(--surface);">
+              <button style="flex:1;text-align:left;padding:6px 8px;font-size:12.5px;border-radius:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-2);">{{ row }}</button>
+              <button onClick="{{ onTopicMenu }}" style="padding:2px 4px;color:var(--text-3);font-size:13px;line-height:1;" style-hover="color:var(--text);">⋯</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding:10px;">
+      <div style="display:flex;gap:2px;padding:2px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;">
+        <button onClick="{{ onStudent }}" style="{{ studentTabStyle }}">Student</button>
+        <button onClick="{{ onInstructor }}" style="{{ instructorTabStyle }}">Instructor</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;">
+        <span style="width:24px;height:24px;border-radius:50%;background:var(--border);color:var(--text-2);font-size:10px;display:flex;align-items:center;justify-content:center;flex:0 0 24px;">MR</span>
+        <span style="flex:1;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Maren Reyes</span>
+        <button onClick="{{ onTheme }}" title="Toggle theme" style="padding:3px 5px;border-radius:6px;color:var(--text-3);font-size:12px;line-height:1;" style-hover="color:var(--text);background:var(--surface);">{{ themeIcon }}</button>
+        <button onClick="{{ onTopicMenu }}" title="Settings" style="padding:3px 5px;border-radius:6px;color:var(--text-3);font-size:12px;line-height:1;" style-hover="color:var(--text);background:var(--surface);">⚙</button>
+      </div>
+    </div>
+  </aside>
+
+  <main style="flex:1;min-width:640px;height:100%;display:flex;flex-direction:column;overflow:hidden;">
+
+    <div style="flex:0 0 auto;padding:28px 40px 0 40px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:28px;flex-wrap:wrap;">
+        <div style="flex:1 1 320px;min-width:0;">
+          <div style="font-size:12px;color:var(--text-3);margin-bottom:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            <span>AI &amp; Learning</span>
+            <span style="padding:0 6px;color:var(--border-2);">/</span>
+            <span style="color:var(--text-2);">AI and independent reasoning</span>
+          </div>
+          <input value="{{ title }}" onChange="{{ onTitle }}" style="display:block;width:100%;font-size:25px;font-weight:400;letter-spacing:-0.022em;background:transparent;border:1px solid transparent;border-radius:8px;padding:2px 8px;margin-left:-8px;outline:none;" style-hover="border-color:var(--border);" style-focus="border-color:var(--border-2);background:var(--surface);" />
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding-top:22px;flex:0 0 auto;">
+          <div style="display:flex;gap:2px;padding:2px;background:var(--bg);border:1px solid var(--border);border-radius:8px;">
+            <button onClick="{{ onFocus }}" style="{{ focusTabStyle }}">Focus</button>
+            <button onClick="{{ onMap }}" style="{{ mapTabStyle }}">Map</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:2px;">
+            <button onClick="{{ onEvolved }}" style="padding:6px 11px;border-radius:8px;font-size:12.5px;color:var(--text-2);" style-hover="background:var(--surface);color:var(--text);">How your question evolved</button>
+            <button style="padding:6px 11px;border-radius:8px;font-size:12.5px;color:var(--text-2);" style-hover="background:var(--surface);color:var(--text);">Share</button>
+            <button onClick="{{ onDocMenu }}" style="padding:6px 9px;border-radius:8px;font-size:13px;color:var(--text-2);line-height:1;" style-hover="background:var(--surface);color:var(--text);">⋯</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:baseline;gap:14px;margin-top:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+        <span style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);white-space:nowrap;flex:0 0 auto;">REASONING SO FAR</span>
+        <div style="display:flex;align-items:baseline;gap:0;flex-wrap:wrap;">
+          <sc-for list="{{ vocab }}" as="v" hint-placeholder-count="6">
+            <span style="display:inline-flex;align-items:baseline;">
+              <button onClick="{{ v.onClick }}" style="{{ v.style }}">{{ v.label }}</button>
+              <sc-if value="{{ v.hasDot }}" hint-placeholder-val="{{ true }}">
+                <span style="color:var(--border-2);padding:0 7px;font-size:11px;">·</span>
+              </sc-if>
+            </span>
+          </sc-for>
+        </div>
+        <span style="flex:1;min-width:12px;"></span>
+        <span style="font-size:11.5px;color:var(--text-3);white-space:nowrap;flex:0 0 auto;">{{ vocabCount }}</span>
+      </div>
+    </div>
+
+    <sc-if value="{{ isFocus }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;overflow-y:auto;padding:28px 40px 120px 40px;">
+        <div style="max-width:660px;">
+
+          <sc-for list="{{ trail }}" as="t" hint-placeholder-count="2">
+            <div>
+              <sc-if value="{{ t.hasRel }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;align-items:center;gap:10px;padding-left:18px;height:26px;">
+                  <span style="width:1px;height:26px;background:var(--border-2);display:block;"></span>
+                  <span style="font-size:10.5px;letter-spacing:0.06em;color:var(--text-3);">{{ t.rel }}</span>
+                </div>
+              </sc-if>
+              <button onClick="{{ t.onSelect }}" style="{{ t.style }}">
+                <span style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                  <span style="font-size:11px;color:var(--text-3);">✓</span>
+                  <span style="font-size:10px;letter-spacing:0.1em;color:var(--text-3);">{{ t.type }}</span>
+                  <sc-if value="{{ t.hasSiblings }}" hint-placeholder-val="{{ true }}">
+                    <span style="font-size:10px;color:var(--text-3);border:1px solid var(--border);border-radius:4px;padding:1px 5px;white-space:nowrap;flex:0 0 auto;">{{ t.siblingNote }}</span>
+                  </sc-if>
+                </span>
+                <span style="display:block;font-size:13.5px;line-height:1.55;color:var(--text-2);padding-left:21px;">{{ t.text }}</span>
+              </button>
+            </div>
+          </sc-for>
+
+          <div style="display:flex;align-items:center;gap:10px;padding-left:18px;height:30px;">
+            <span style="width:1px;height:30px;background:var(--border-2);display:block;"></span>
+            <span style="font-size:10.5px;letter-spacing:0.06em;color:var(--text-3);">{{ currentRel }}</span>
+          </div>
+
+          <div style="font-size:10px;letter-spacing:0.1em;color:var(--text-3);margin:8px 0 10px 0;">CURRENT THOUGHT</div>
+
+          <div style="border:1px solid var(--border-2);background:var(--surface);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,0.03);animation:fadeUp 0.28s ease both;">
+            <div style="padding:22px 24px 20px 24px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                <span style="font-size:10.5px;letter-spacing:0.1em;color:var(--brand);">{{ cur.type }}</span>
+                <span style="flex:1;"></span>
+                <button onClick="{{ cur.onChangeType }}" style="font-size:11px;color:var(--text-3);border:1px solid var(--border);border-radius:6px;padding:2px 7px;" style-hover="color:var(--text);border-color:var(--border-2);">Change type</button>
+              </div>
+
+              <sc-if value="{{ cur.isEditing }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <textarea value="{{ cur.editValue }}" onChange="{{ cur.onText }}" placeholder="Write this thought in your own words." style="width:100%;height:96px;padding:14px 15px;background:var(--bg);border:1px solid var(--border-2);border-radius:10px;font-size:16.5px;line-height:1.55;letter-spacing:-0.01em;outline:none;" style-focus="border-color:var(--brand);"></textarea>
+                  <div style="display:flex;align-items:center;gap:12px;margin-top:11px;">
+                    <button onClick="{{ cur.onDone }}" disabled="{{ cur.doneDisabled }}" style="{{ cur.doneStyle }}">Done</button>
+                    <span style="font-size:11.5px;color:var(--text-3);">{{ cur.editHint }}</span>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ cur.isTension }}" hint-placeholder-val="{{ true }}">
+                <div>
+                  <div style="font-size:17px;line-height:1.5;letter-spacing:-0.01em;">{{ cur.partA }}</div>
+                  <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
+                    <span style="font-size:10px;letter-spacing:0.12em;color:var(--brand);">BUT</span>
+                    <span style="flex:1;height:1px;background:var(--border);"></span>
+                  </div>
+                  <div style="font-size:17px;line-height:1.5;letter-spacing:-0.01em;">{{ cur.partB }}</div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ cur.isPlain }}" hint-placeholder-val="{{ true }}">
+                <div style="font-size:17px;line-height:1.55;letter-spacing:-0.01em;text-wrap:pretty;">{{ cur.text }}</div>
+              </sc-if>
+
+              <sc-if value="{{ cur.hasCite }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-top:14px;display:flex;align-items:center;gap:12px;">
+                  <span style="font-size:12px;color:var(--ext);">{{ cur.cite }}</span>
+                  <button style="font-size:11.5px;color:var(--text-3);" style-hover="color:var(--text);">Open source</button>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ cur.hasScope }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+                  <div style="font-size:10.5px;letter-spacing:0.07em;color:var(--text-3);margin-bottom:8px;">SCOPE</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    <sc-for list="{{ cur.scope }}" as="sc" hint-placeholder-count="3">
+                      <span style="font-size:11.5px;color:var(--text-2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;">{{ sc }}</span>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+
+              <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--border);">
+                <div style="font-size:12.5px;color:var(--text-2);margin-bottom:9px;">{{ cur.noteLabel }}</div>
+                <textarea value="{{ cur.note }}" onChange="{{ cur.onNote }}" placeholder="{{ cur.notePlaceholder }}" style="width:100%;height:74px;padding:12px 13px;background:var(--bg);border:1px solid var(--border);border-radius:9px;font-size:13.5px;line-height:1.55;outline:none;" style-focus="border-color:var(--border-2);"></textarea>
+                <sc-if value="{{ cur.hasSecondary }}" hint-placeholder-val="{{ true }}">
+                  <div style="font-size:10.5px;letter-spacing:0.06em;color:var(--text-3);margin-top:7px;">{{ cur.secondary }}</div>
+                </sc-if>
+              </div>
+
+              <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:20px;">
+                <sc-for list="{{ cur.actions }}" as="a" hint-placeholder-count="5">
+                  <button onClick="{{ a.onClick }}" style="{{ a.style }}">{{ a.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+
+            <sc-if value="{{ inline }}" hint-placeholder-val="{{ true }}">
+              <div style="border-top:1px solid var(--border);background:var(--surface-2);border-radius:0 0 12px 12px;padding:20px 24px 22px 24px;animation:fadeIn 0.3s ease both;">
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+                  <span style="width:6px;height:6px;border-radius:50%;background:var(--brand);display:block;"></span>
+                  <span style="font-size:11px;letter-spacing:0.05em;color:var(--brand);">EPISTEMIC COACH</span>
+                  <span style="flex:1;"></span>
+                  <button onClick="{{ onSkipInline }}" style="font-size:11.5px;color:var(--text-3);" style-hover="color:var(--text);">Skip for now</button>
+                </div>
+                <div style="font-size:14px;line-height:1.65;color:var(--text-2);margin-bottom:8px;text-wrap:pretty;">{{ inlineReflect }}</div>
+                <div style="font-size:14.5px;line-height:1.6;margin-bottom:16px;text-wrap:pretty;">{{ inlinePrompt }}</div>
+                <textarea value="{{ inlineAnswer }}" onChange="{{ onInlineAnswer }}" placeholder="Answer in your own words." style="width:100%;height:70px;padding:12px 13px;background:var(--surface);border:1px solid var(--border);border-radius:9px;font-size:13.5px;line-height:1.55;outline:none;" style-focus="border-color:var(--border-2);"></textarea>
+                <div style="display:flex;align-items:center;gap:12px;margin-top:13px;">
+                  <button onClick="{{ onRespond }}" disabled="{{ respondDisabled }}" style="{{ respondStyle }}">Respond</button>
+                  <button onClick="{{ onInlineHint }}" style="font-size:12.5px;color:var(--text-2);padding:6px 10px;border-radius:8px;" style-hover="color:var(--text);background:var(--surface);">Give me a hint</button>
+                  <button onClick="{{ onSaveAsThought }}" disabled="{{ respondDisabled }}" style="{{ saveThoughtStyle }}">Save as thought</button>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ hasDirections }}" hint-placeholder-val="{{ true }}">
+            <div style="margin-top:34px;">
+              <div style="font-size:10px;letter-spacing:0.1em;color:var(--text-3);margin-bottom:12px;">DIRECTIONS FROM HERE</div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <sc-for list="{{ directions }}" as="d" hint-placeholder-count="2">
+                  <button onClick="{{ d.onSelect }}" style="display:flex;align-items:flex-start;gap:14px;text-align:left;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface);" style-hover="border-color:var(--border-2);">
+                    <span style="font-size:10px;letter-spacing:0.09em;color:var(--text-3);flex:0 0 88px;padding-top:3px;">{{ d.type }}</span>
+                    <span style="flex:1;font-size:13.5px;line-height:1.55;color:var(--text-2);">{{ d.text }}</span>
+                    <span style="font-size:10.5px;color:var(--text-3);flex:0 0 auto;padding-top:3px;">{{ d.rel }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="margin-top:28px;border:1px dashed var(--border-2);border-radius:11px;padding:18px 20px;">
+            <div style="font-size:10px;letter-spacing:0.1em;color:var(--text-3);margin-bottom:9px;">SUGGESTED NEXT MOVE</div>
+            <div style="font-size:15px;line-height:1.55;margin-bottom:16px;text-wrap:pretty;">{{ suggestText }}</div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <button onClick="{{ onSuggestCreate }}" style="font-size:12.5px;color:var(--brand);border:1px solid var(--brand);border-radius:8px;padding:7px 13px;" style-hover="background:var(--brand-soft);">{{ suggestCta }}</button>
+              <button onClick="{{ onBranchOpen }}" style="font-size:12.5px;color:var(--text-2);padding:7px 11px;border-radius:8px;" style-hover="color:var(--text);background:var(--surface);">Branch another way</button>
+              <span style="flex:1;"></span>
+              <span style="font-size:11.5px;color:var(--text-3);">You can continue from here or revisit any thought.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isMap }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;position:relative;overflow:hidden;border-top:1px solid var(--border);">
+        <div ref="{{ setCanvas }}" onMouseDown="{{ onCanvasDown }}" onWheel="{{ onWheel }}" style="{{ canvasStyle }}">
+          <div style="{{ worldStyle }}">
+            <svg width="3000" height="2400" style="position:absolute;left:-1000px;top:-600px;overflow:visible;pointer-events:none;">
+              <g transform="translate(1000,600)">
+                <sc-for list="{{ edges }}" as="e" hint-placeholder-count="6">
+                  <path d="{{ e.d }}" fill="none" stroke="{{ e.stroke }}" stroke-width="{{ e.w }}" stroke-dasharray="{{ e.dash }}"></path>
+                </sc-for>
+              </g>
+            </svg>
+
+            <sc-for list="{{ edgeLabels }}" as="l" hint-placeholder-count="5">
+              <button onClick="{{ l.onClick }}" style="{{ l.style }}">{{ l.label }}</button>
+            </sc-for>
+
+            <sc-for list="{{ mapNodes }}" as="n" hint-placeholder-count="7">
+              <div onMouseDown="{{ n.onDown }}" onMouseEnter="{{ n.onEnter }}" onMouseLeave="{{ n.onLeave }}" style="{{ n.wrapStyle }}">
+                <sc-if value="{{ n.showToolbar }}" hint-placeholder-val="{{ true }}">
+                  <div onMouseDown="{{ stop }}" style="position:absolute;left:0;top:-40px;display:flex;align-items:center;gap:2px;padding:3px;background:var(--surface);border:1px solid var(--border-2);border-radius:9px;box-shadow:0 3px 12px rgba(0,0,0,0.08);white-space:nowrap;z-index:5;">
+                    <sc-for list="{{ n.tools }}" as="t" hint-placeholder-count="5">
+                      <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+                <div style="{{ n.cardStyle }}">
+                  <sc-if value="{{ n.isCollapsed }}" hint-placeholder-val="{{ true }}">
+                    <div>
+                      <div style="font-size:9.5px;letter-spacing:0.1em;color:var(--text-3);margin-bottom:7px;">{{ n.type }}</div>
+                      <div style="font-size:13px;line-height:1.5;color:var(--text-2);margin-bottom:12px;">{{ n.text }}</div>
+                      <div style="display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--border);">
+                        <span style="font-size:11.5px;color:var(--text-3);">{{ n.insideNote }}</span>
+                        <span style="flex:1;"></span>
+                        <button onClick="{{ n.onExpand }}" onMouseDown="{{ stop }}" style="font-size:11.5px;color:var(--brand);" style-hover="color:var(--text);">Expand</button>
+                      </div>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ n.isNormal }}" hint-placeholder-val="{{ true }}">
+                    <div>
+                      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span style="{{ n.labelStyle }}">{{ n.type }}</span>
+                        <span style="flex:1;"></span>
+                        <sc-if value="{{ n.isSelected }}" hint-placeholder-val="{{ true }}">
+                          <span style="width:5px;height:5px;border-radius:50%;background:var(--brand);display:block;"></span>
+                        </sc-if>
+                      </div>
+
+                      <sc-if value="{{ n.isTension }}" hint-placeholder-val="{{ true }}">
+                        <div>
+                          <div style="font-size:13.5px;line-height:1.5;">{{ n.partA }}</div>
+                          <div style="display:flex;align-items:center;gap:9px;margin:8px 0;">
+                            <span style="font-size:9px;letter-spacing:0.12em;color:var(--brand);">BUT</span>
+                            <span style="flex:1;height:1px;background:var(--border);"></span>
+                          </div>
+                          <div style="font-size:13.5px;line-height:1.5;">{{ n.partB }}</div>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ n.isPlain }}" hint-placeholder-val="{{ true }}">
+                        <div style="{{ n.textStyle }}">{{ n.text }}</div>
+                      </sc-if>
+
+                      <sc-if value="{{ n.hasMeta }}" hint-placeholder-val="{{ true }}">
+                        <div style="margin-top:11px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:baseline;gap:8px;">
+                          <span style="font-size:9.5px;letter-spacing:0.07em;color:var(--text-3);">{{ n.metaLabel }}</span>
+                          <span style="font-size:11.5px;color:{{ n.metaColor }};line-height:1.45;">{{ n.meta }}</span>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ n.hasCta }}" hint-placeholder-val="{{ true }}">
+                        <button onClick="{{ n.onCta }}" onMouseDown="{{ stop }}" style="margin-top:12px;font-size:11.5px;color:var(--text-3);border:1px solid var(--border);border-radius:6px;padding:3px 8px;" style-hover="color:var(--text);border-color:var(--border-2);">{{ n.cta }}</button>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-for>
+
+            <sc-for list="{{ ghostCtas }}" as="g" hint-placeholder-count="0">
+              <button onClick="{{ g.onClick }}" onMouseDown="{{ stop }}" style="{{ g.style }}">{{ g.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <sc-if value="{{ selectBox }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ selectBoxStyle }}"></div>
+        </sc-if>
+
+        <div style="position:absolute;left:20px;right:20px;bottom:20px;display:flex;align-items:center;gap:6px;white-space:nowrap;pointer-events:none;">
+        <div style="display:flex;align-items:center;gap:6px;pointer-events:auto;">
+          <div style="display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden;">
+            <button onClick="{{ onZoomOut }}" style="padding:7px 11px;font-size:13px;color:var(--text-2);" style-hover="background:var(--bg);color:var(--text);">−</button>
+            <span style="font-size:11.5px;color:var(--text-3);padding:0 4px;min-width:42px;text-align:center;">{{ zoomLabel }}</span>
+            <button onClick="{{ onZoomIn }}" style="padding:7px 11px;font-size:13px;color:var(--text-2);" style-hover="background:var(--bg);color:var(--text);">+</button>
+          </div>
+          <button onClick="{{ onFit }}" style="padding:7px 12px;font-size:12px;color:var(--text-2);background:var(--surface);border:1px solid var(--border);border-radius:9px;" style-hover="color:var(--text);border-color:var(--border-2);">Fit view</button>
+          <button onClick="{{ onOrganize }}" style="padding:7px 12px;font-size:12px;color:var(--text-2);background:var(--surface);border:1px solid var(--border);border-radius:9px;" style-hover="color:var(--text);border-color:var(--border-2);">Organize</button>
+          <button onClick="{{ onFocusSelected }}" style="padding:7px 12px;font-size:12px;color:var(--text-2);background:var(--surface);border:1px solid var(--border);border-radius:9px;" style-hover="color:var(--text);border-color:var(--border-2);">{{ isolateLabel }}</button>
+          <button onClick="{{ onUndo }}" style="{{ undoStyle }}">Undo</button>
+          <button onClick="{{ onRedo }}" style="{{ redoStyle }}">Redo</button>
+          </div>
+          <span style="flex:1;min-width:16px;"></span>
+          <div style="font-size:11px;color:var(--text-3);text-align:right;line-height:1.7;overflow:hidden;flex:0 1 auto;">
+            <div style="overflow:hidden;text-overflow:ellipsis;">{{ hintLine }}</div>
+            <div style="opacity:0.75;overflow:hidden;text-overflow:ellipsis;">drag to pan · ⌘ scroll to zoom · shift-drag to select</div>
+          </div>
+        </div>
+
+        <sc-if value="{{ connectMode }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;left:50%;top:18px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--brand);border-radius:9px;padding:8px 14px;box-shadow:0 4px 16px rgba(0,0,0,0.08);animation:fadeIn 0.18s ease both;">
+            <span style="font-size:12.5px;">Click the thought you want to connect to.</span>
+            <button onClick="{{ onCancelConnect }}" style="font-size:12px;color:var(--text-3);" style-hover="color:var(--text);">Cancel</button>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </main>
+
+  <aside style="width:360px;flex:0 0 360px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface);">
+    <div style="padding:18px 22px 0 22px;">
+      <div style="display:flex;align-items:center;gap:9px;">
+        <span style="width:7px;height:7px;border-radius:50%;background:var(--brand);display:block;"></span>
+        <span style="font-size:13.5px;font-weight:500;letter-spacing:-0.005em;">Epistemic Coach</span>
+      </div>
+      <div style="display:flex;gap:20px;margin-top:16px;border-bottom:1px solid var(--border);">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+          <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <sc-if value="{{ tabCoach }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;display:flex;flex-direction:column;min-height:0;">
+        <div style="flex:1;overflow-y:auto;padding:22px;">
+          <div style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:8px;">CURRENT</div>
+          <div style="border:1px solid var(--border);border-radius:10px;padding:14px 15px;background:var(--surface-2);">
+            <div style="font-size:10px;letter-spacing:0.1em;color:var(--brand);margin-bottom:7px;">{{ cur.type }}</div>
+            <div style="font-size:13.5px;line-height:1.55;">{{ cur.text }}</div>
+          </div>
+
+          <div style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);margin:24px 0 8px 0;">NEXT MOVE</div>
+          <div style="font-size:14px;line-height:1.6;margin-bottom:10px;text-wrap:pretty;">{{ nextMove }}</div>
+          <div style="font-size:12.5px;line-height:1.6;color:var(--text-2);margin-bottom:14px;text-wrap:pretty;">
+            <span style="letter-spacing:0.06em;font-size:10.5px;color:var(--text-3);">RECOMMENDED</span>
+            <span style="display:block;margin-top:4px;">{{ recommended }}</span>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button onClick="{{ onExplore }}" style="font-size:12.5px;color:var(--brand);border:1px solid var(--brand);border-radius:8px;padding:6px 13px;" style-hover="background:var(--brand-soft);">Explore</button>
+            <button onClick="{{ onBranchOpen }}" style="font-size:12.5px;color:var(--text-2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;" style-hover="color:var(--text);border-color:var(--border-2);">Branch another way</button>
+          </div>
+
+          <sc-for list="{{ thread }}" as="m" hint-placeholder-count="0">
+            <div style="{{ m.wrapStyle }}">
+              <div style="{{ m.labelStyle }}">{{ m.label }}</div>
+              <div style="{{ m.textStyle }}">{{ m.text }}</div>
+              <sc-if value="{{ m.hasSave }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ m.onSave }}" style="margin-top:11px;font-size:12px;color:var(--text-2);border:1px solid var(--border);border-radius:7px;padding:4px 9px;" style-hover="color:var(--text);border-color:var(--border-2);">Save as thought</button>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="border-top:1px solid var(--border);padding:13px 22px 18px 22px;">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px;">
+            <sc-for list="{{ quick }}" as="q" hint-placeholder-count="3">
+              <button onClick="{{ q.onClick }}" style="font-size:12px;color:var(--text-2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;" style-hover="border-color:var(--border-2);color:var(--text);background:var(--surface-2);">{{ q.label }}</button>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:8px;border:1px solid var(--border);border-radius:10px;padding:9px 11px;background:var(--bg);">
+            <textarea value="{{ ask }}" onChange="{{ onAsk }}" onKeyDown="{{ onAskKey }}" placeholder="Answer Coach..." style="flex:1;height:22px;max-height:90px;background:transparent;border:none;outline:none;font-size:13.5px;line-height:1.5;"></textarea>
+            <button onClick="{{ onSend }}" style="font-size:12px;color:var(--brand);padding:1px 2px;" style-hover="color:var(--text);">Send</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ tabSearch }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:22px;">
+        <div style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:9px;">SEARCH RESEARCH</div>
+        <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:9px;padding:8px 11px;background:var(--bg);">
+          <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Concept, keyword, or claim" style="flex:1;background:transparent;border:none;outline:none;font-size:13px;" />
+          <span style="font-size:11px;color:var(--text-3);">↵</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;">
+          <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+            <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin:22px 0 10px 0;">
+          <span style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);">{{ resultCount }}</span>
+          <span style="flex:1;height:1px;background:var(--border);"></span>
+          <span style="font-size:10px;letter-spacing:0.07em;color:var(--ext);">DRAG TO CANVAS</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <sc-for list="{{ results }}" as="r" hint-placeholder-count="4">
+            <div onMouseDown="{{ r.onDown }}" style="{{ r.style }}">
+              <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:6px;">
+                <span style="font-size:12px;color:var(--ext);">{{ r.cite }}</span>
+                <span style="flex:1;"></span>
+                <span style="font-size:10.5px;color:var(--text-3);">{{ r.method }}</span>
+              </div>
+              <div style="font-size:13.5px;line-height:1.5;margin-bottom:9px;">{{ r.title }}</div>
+              <div style="font-size:10.5px;letter-spacing:0.07em;color:var(--text-3);margin-bottom:4px;">FINDING</div>
+              <div style="font-size:12.5px;line-height:1.55;color:var(--text-2);">{{ r.finding }}</div>
+              <div style="display:flex;align-items:center;gap:14px;margin-top:12px;padding-top:11px;border-top:1px solid var(--border);">
+                <button style="font-size:11.5px;color:var(--text-2);" style-hover="color:var(--text);">Open</button>
+                <button onClick="{{ r.onSave }}" style="{{ r.saveStyle }}">{{ r.saveLabel }}</button>
+                <span style="flex:1;"></span>
+                <span style="font-size:10.5px;color:var(--text-3);">⠿ drag</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ tabSources }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:22px;">
+        <div style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:14px;">{{ savedCount }}</div>
+        <sc-if value="{{ noSaved }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:13px;color:var(--text-2);line-height:1.6;">Nothing saved yet. Search for work relevant to your reasoning, then save what you actually intend to read.</div>
+        </sc-if>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <sc-for list="{{ saved }}" as="r" hint-placeholder-count="0">
+            <div onMouseDown="{{ r.onDown }}" style="{{ r.style }}">
+              <div style="font-size:12px;color:var(--ext);margin-bottom:6px;">{{ r.cite }}</div>
+              <div style="font-size:13px;line-height:1.5;margin-bottom:10px;">{{ r.title }}</div>
+              <div style="display:flex;align-items:center;gap:12px;padding-top:10px;border-top:1px solid var(--border);">
+                <span style="font-size:11px;color:var(--text-3);">{{ r.usage }}</span>
+                <span style="flex:1;"></span>
+                <span style="font-size:10.5px;color:var(--text-3);">⠿ drag</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+  </aside>
+
+  <sc-if value="{{ dragging }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ dragGhostStyle }}">
+      <div style="font-size:11px;color:var(--ext);margin-bottom:4px;">{{ dragCite }}</div>
+      <div style="font-size:12.5px;line-height:1.45;">{{ dragTitle }}</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ branchOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onCloseBranch }}" style="position:fixed;inset:0;z-index:70;background:rgba(10,10,10,0.18);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.16s ease both;">
+      <div onClick="{{ stop }}" style="width:440px;background:var(--surface);border:1px solid var(--border-2);border-radius:12px;padding:22px 24px 20px 24px;box-shadow:0 10px 34px rgba(0,0,0,0.12);animation:fadeUp 0.2s ease both;">
+        <div style="font-size:15px;margin-bottom:4px;">Create a new direction</div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:18px;">From your {{ branchFromType }} — “{{ branchFromText }}”</div>
+        <div style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:6px;">SUGGESTED</div>
+        <div style="display:flex;flex-direction:column;">
+          <sc-for list="{{ branchOptions }}" as="b" hint-placeholder-count="4">
+            <button onClick="{{ b.onClick }}" style="display:flex;align-items:center;gap:12px;text-align:left;padding:11px 10px;border-top:1px solid var(--border);border-radius:0;" style-hover="background:var(--bg);">
+              <span style="font-size:9.5px;letter-spacing:0.09em;color:var(--text-3);flex:0 0 72px;">{{ b.type }}</span>
+              <span style="flex:1;font-size:13px;line-height:1.5;">{{ b.label }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+          <div style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:8px;">CUSTOM</div>
+          <textarea value="{{ branchCustom }}" onChange="{{ onBranchCustom }}" placeholder="Write my own direction..." style="width:100%;height:66px;padding:11px 12px;background:var(--bg);border:1px solid var(--border);border-radius:9px;font-size:13px;line-height:1.55;outline:none;" style-focus="border-color:var(--border-2);"></textarea>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+            <select value="{{ branchType }}" onChange="{{ onBranchType }}" style="font-size:12px;color:var(--text-2);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 9px;outline:none;">
+              <sc-for list="{{ typeOptions }}" as="t" hint-placeholder-count="6">
+                <option value="{{ t }}">{{ t }}</option>
+              </sc-for>
+            </select>
+            <button onClick="{{ onBranchCreate }}" disabled="{{ branchDisabled }}" style="{{ branchCreateStyle }}">Create thought</button>
+            <span style="flex:1;"></span>
+            <button onClick="{{ onCloseBranch }}" style="font-size:12px;color:var(--text-3);" style-hover="color:var(--text);">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ relOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onCloseRel }}" style="position:fixed;inset:0;z-index:70;animation:fadeIn 0.14s ease both;">
+      <div onClick="{{ stop }}" style="{{ relStyle }}">
+        <div style="font-size:12.5px;padding:4px 8px 10px 8px;color:var(--text-2);">{{ relTitle }}</div>
+        <sc-for list="{{ relOptions }}" as="r" hint-placeholder-count="6">
+          <button onClick="{{ r.onClick }}" style="{{ r.style }}">{{ r.label }}</button>
+        </sc-for>
+        <div style="display:flex;align-items:center;gap:6px;padding:8px 6px 4px 6px;border-top:1px solid var(--border);margin-top:5px;">
+          <input value="{{ relCustom }}" onChange="{{ onRelCustom }}" onKeyDown="{{ onRelKey }}" placeholder="Custom..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:12px;outline:none;" />
+          <button onClick="{{ onRelCustomSave }}" style="font-size:11.5px;color:var(--brand);padding:2px 6px;" style-hover="color:var(--text);">Set</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ interpretOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:72;background:rgba(10,10,10,0.2);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.16s ease both;">
+      <div style="width:470px;background:var(--surface);border:1px solid var(--border-2);border-radius:12px;padding:22px 24px;box-shadow:0 10px 34px rgba(0,0,0,0.12);animation:fadeUp 0.2s ease both;">
+        <div style="font-size:11px;color:var(--ext);margin-bottom:5px;">{{ interpretCite }}</div>
+        <div style="font-size:14.5px;line-height:1.5;margin-bottom:16px;">{{ interpretTitle }}</div>
+
+        <sc-if value="{{ interpretAskRel }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:13px;color:var(--text-2);margin-bottom:12px;">How should this source relate to “{{ interpretTargetText }}”?</div>
+            <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px;">
+              <sc-for list="{{ interpretRels }}" as="r" hint-placeholder-count="4">
+                <button onClick="{{ r.onClick }}" style="{{ r.style }}">{{ r.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ interpretAskText }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:10.5px;letter-spacing:0.07em;color:var(--text-3);margin-bottom:5px;">FINDING</div>
+            <div style="font-size:12.5px;line-height:1.55;color:var(--text-2);margin-bottom:18px;">{{ interpretFinding }}</div>
+            <div style="font-size:14px;margin-bottom:10px;">What do you think this source shows?</div>
+            <div style="font-size:10.5px;letter-spacing:0.06em;color:var(--text-3);margin-bottom:7px;">YOUR INTERPRETATION</div>
+            <textarea value="{{ interpretText }}" onChange="{{ onInterpretText }}" placeholder="The finding matters to my reasoning because…" style="width:100%;height:84px;padding:12px 13px;background:var(--bg);border:1px solid var(--border);border-radius:9px;font-size:13.5px;line-height:1.55;outline:none;" style-focus="border-color:var(--border-2);"></textarea>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:14px;">
+              <button onClick="{{ onCreateEvidence }}" disabled="{{ interpretDisabled }}" style="{{ interpretBtnStyle }}">Create evidence</button>
+              <button onClick="{{ onKeepSource }}" style="font-size:12.5px;color:var(--text-2);padding:6px 11px;border-radius:8px;" style-hover="color:var(--text);background:var(--bg);">Keep as source only</button>
+              <span style="flex:1;"></span>
+              <button onClick="{{ onCloseInterpret }}" style="font-size:12px;color:var(--text-3);" style-hover="color:var(--text);">Cancel</button>
+            </div>
+            <div style="font-size:11.5px;color:var(--text-3);margin-top:12px;line-height:1.5;">The evidence records your reading of the finding, not the paper's abstract.</div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ evolvedOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:74;background:rgba(10,10,10,0.26);display:flex;align-items:center;justify-content:center;padding:48px;animation:fadeIn 0.18s ease both;">
+      <div style="width:620px;max-height:100%;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 32px 32px 32px;animation:fadeUp 0.24s ease both;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+          <h2 style="font-size:19px;font-weight:400;letter-spacing:-0.015em;margin:0;">How your question evolved</h2>
+          <span style="flex:1;"></span>
+          <button onClick="{{ onCloseEvolved }}" style="font-size:15px;color:var(--text-3);line-height:1;" style-hover="color:var(--text);">✕</button>
+        </div>
+        <p style="margin:0 0 28px 0;font-size:12.5px;color:var(--text-2);line-height:1.6;">Every version is kept. Nothing here is a score.</p>
+        <sc-for list="{{ versions }}" as="v" hint-placeholder-count="3">
+          <div>
+            <sc-if value="{{ v.hasLine }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;gap:16px;align-items:flex-start;padding:14px 0;">
+                <span style="width:1px;height:100%;min-height:28px;background:var(--border-2);display:block;margin-left:4px;flex:0 0 1px;"></span>
+                <div style="flex:1;font-size:12.5px;color:var(--text-2);line-height:1.6;padding-top:2px;text-wrap:pretty;">
+                  <span style="font-size:10px;letter-spacing:0.08em;color:var(--text-3);display:block;margin-bottom:4px;">WHAT CHANGED</span>
+                  {{ v.change }}
+                </div>
+              </div>
+            </sc-if>
+            <div style="display:flex;gap:16px;align-items:flex-start;">
+              <span style="{{ v.dotStyle }}"></span>
+              <div style="flex:1;">
+                <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;">
+                  <span style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);">{{ v.label }}</span>
+                  <span style="font-size:10.5px;color:var(--text-3);">{{ v.when }}</span>
+                </div>
+                <div style="{{ v.textStyle }}">{{ v.text }}</div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+        <div style="margin-top:30px;padding-top:20px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-2);line-height:1.65;text-wrap:pretty;">
+          You have explored {{ vocabCount }}. This direction is developed enough to move forward — you can also revisit any earlier thought and branch again.
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onCloseMenu }}" onContextMenu="{{ onCloseMenu }}" style="position:fixed;inset:0;z-index:76;">
+      <div onClick="{{ stop }}" style="{{ menuStyle }}">
+        <sc-for list="{{ menuItems }}" as="mi" hint-placeholder-count="0">
+          <div>
+            <sc-if value="{{ mi.isDivider }}" hint-placeholder-val="{{ true }}">
+              <div style="height:1px;background:var(--border);margin:5px 0;"></div>
+            </sc-if>
+            <sc-if value="{{ mi.isItem }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ mi.onClick }}" style="{{ mi.style }}">{{ mi.label }}</button>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1512,&quot;height&quot;:940}}">
+const W = 264;
+const H = { NOTICE: 118, WONDER: 104, TENSION: 138, UNKNOWN: 126, QUESTION: 146, EVIDENCE: 138, SOURCE: 104, CHALLENGE: 122, ALTERNATIVE: 112, ASSUMPTION: 112, CLAIM: 112, IDEA: 104, SYNTHESIS: 112 };
+const TYPES = ['Notice', 'Wonder', 'Tension', 'Unknown', 'Question', 'Idea', 'Claim', 'Evidence', 'Challenge', 'Alternative', 'Assumption', 'Synthesis'];
+const RELS = ['raises', 'suggests', 'challenges', 'supports', 'contradicts', 'leaves uncertain', 'leads to', 'reframes'];
+
+const NOTE = {
+  NOTICE: ['Observed from', 'Where did you encounter this? Seminar, your own work, a conversation…', 'Provenance'],
+  WONDER: ["Why I'm asking", 'What made this worth asking?', 'Motivation'],
+  TENSION: ['Why does this matter?', 'What would follow if both sides held at once?', 'Stakes'],
+  UNKNOWN: ['What would help answer this?', 'Name the observation or evidence that would settle it.', 'Evidence needed'],
+  QUESTION: ['What is still ambiguous?', 'Which terms are doing more than one job?', 'Refinement'],
+  EVIDENCE: ['Why does this support your idea?', 'Say what the finding licenses you to claim.', 'Warrant'],
+  CHALLENGE: ['How would you answer this?', 'Take the objection seriously before dismissing it.', 'Counter-reasoning'],
+  DEFAULT: ['Your note', 'Anything you want to keep with this thought.', '']
+};
+
+const COACH = {
+  NOTICE: { reflect: 'You are recording something you saw rather than explaining it, which is the right order.', prompt: 'What about this did you not expect?', next: 'Say what surprised you about it.', rec: 'Separate the observation from your explanation of it.', suggest: 'Something you observed is worth wondering about.', cta: '+ Create Wonder', childType: 'WONDER' },
+  WONDER: { reflect: 'You are asking whether speed and learning are the same thing. They may not be.', prompt: 'Which two claims here are hard to hold together?', next: 'Name the two things that resist each other.', rec: 'Turn the open question into a stated tension.', suggest: 'This wonder may be holding two incompatible claims.', cta: '+ Create Tension', childType: 'TENSION' },
+  TENSION: { reflect: 'You are comparing two different outcomes: performance and learning.', prompt: 'What would count as evidence that students actually learned the reasoning?', next: 'Clarify what you mean by “learning.”', rec: 'Define a measurable indicator of learning.', suggest: 'What remains uncertain once both sides are granted?', cta: '+ Create Unknown', childType: 'UNKNOWN' },
+  UNKNOWN: { reflect: 'This is a gap evidence could close, not a topic.', prompt: 'Which ability, exactly, would you want students to perform without help?', next: 'Make the unknown specific enough to study.', rec: 'Name the population and the activity.', suggest: 'You have enough to write the question in your own words.', cta: '+ Create Question', childType: 'QUESTION' },
+  QUESTION: { reflect: 'This is a first version. Some of its terms still carry more than one meaning.', prompt: 'Which term in your question would two readers define differently?', next: 'Narrow one ambiguous term.', rec: 'Decide what “AI assistance” includes and excludes.', suggest: 'A question this size usually rests on an untested assumption.', cta: '+ Create Challenge', childType: 'CHALLENGE' },
+  EVIDENCE: { reflect: 'The finding is the paper’s. The inference is yours.', prompt: 'What does this let you claim, and what does it not?', next: 'State the warrant linking finding to claim.', rec: 'Write what the evidence does not establish.', suggest: 'Evidence usually invites a counter-reading.', cta: '+ Create Challenge', childType: 'CHALLENGE' },
+  CHALLENGE: { reflect: 'You are taking an objection seriously rather than dismissing it.', prompt: 'What would you have to observe for the objection to win?', next: 'Decide whether the objection changes your question.', rec: 'Either narrow the question or say why the objection does not apply.', suggest: 'An answered challenge often reframes the question.', cta: '+ Create Question', childType: 'QUESTION' },
+  SOURCE: { reflect: 'A source is material, not a conclusion.', prompt: 'What do you think this source shows?', next: 'Read the relevant finding and write your interpretation.', rec: 'Turn your reading of it into evidence.', suggest: 'Your reading of this source can become evidence.', cta: '+ Create Evidence', childType: 'EVIDENCE' },
+  DEFAULT: { reflect: 'This thought is yours to develop.', prompt: 'What follows from it?', next: 'Develop this thought or branch from it.', rec: 'Say what it commits you to.', suggest: 'Follow this where it leads.', cta: '+ Create Wonder', childType: 'WONDER' }
+};
+
+const HINTS = {
+  TENSION: ['You are holding a visible gain against a possible hidden cost.', 'Which of the two would you notice first if you were wrong?', 'Consider whether performance and learning necessarily move together.', 'Try completing: Although ___, ___.'],
+  DEFAULT: ['Say the thought again in one sentence, without hedging.', 'What would someone have to believe to disagree with you?', 'Split it: what is observed, and what is inferred?', 'Try completing: Although ___, ___.']
+};
+
+const BRANCH_SUGGEST = [
+  { type: 'WONDER', label: 'What does this make you wonder?' },
+  { type: 'TENSION', label: 'What tension does this reveal?' },
+  { type: 'UNKNOWN', label: 'What remains unknown?' },
+  { type: 'ALTERNATIVE', label: 'Explore an alternative explanation' },
+  { type: 'ASSUMPTION', label: 'Name an assumption it rests on' }
+];
+
+const PAPERS = [
+  { id: 's-smith', cite: 'Smith et al., 2025', method: 'Experimental', title: 'AI Assistance and Hypothesis Generation', finding: 'Students exposed to generated examples produced fewer unique hypotheses than an unaided control group.' },
+  { id: 's-okoro', cite: 'Okoro & Lind, 2024', method: 'Mixed methods', title: 'Task Speed, Effort, and Perceived Learning', finding: 'Self-reported cognitive effort fell by a third while completion time halved; comprehension scores were unchanged.' },
+  { id: 's-marek', cite: 'Marek, 2026', method: 'Longitudinal', title: 'Transfer After Scaffolded Analysis', finding: 'Gains made under scaffolding persisted for procedural steps but not for reconciling conflicting sources.' },
+  { id: 's-halvor', cite: 'Halvorsen, 2023', method: 'Qualitative', title: 'What Graduate Readers Do With Disagreement', finding: 'Readers who summarised each source separately rarely surfaced contradictions between them.' }
+];
+
+const VERSIONS = [
+  { label: 'QUESTION V1', when: 'Mon 14:02', text: 'Does AI reduce independent thinking?', change: null },
+  { label: 'QUESTION V2', when: 'Mon 14:41', text: 'Does AI reduce independent idea generation?', change: 'You replaced “thinking” with “idea generation” after the Coach asked which ability you meant.' },
+  { label: 'QUESTION V3', when: 'Tue 09:18', text: "How does the timing of AI assistance influence students' independent hypothesis generation?", change: 'Timing became important after exploring Tension #2 — the second Wonder branch made it clear the effect might depend on when the tool enters the task.' }
+];
+
+let uid = 100;
+const nid = p => (p || 'n') + (++uid);
+
+const seedNodes = () => [
+  { id: 'n1', type: 'NOTICE', text: 'Students complete assignments much faster when they use AI.', note: 'Student experience', x: 320, y: 40 },
+  { id: 'n2', type: 'WONDER', text: 'Are they actually learning more?', note: '', x: 170, y: 250 },
+  { id: 'n3', type: 'WONDER', text: 'Does faster completion reduce cognitive effort?', note: '', x: 540, y: 250 },
+  { id: 'n4', type: 'TENSION', text: 'Performance increases, but independent learning may not.', partA: 'Performance increases', partB: 'Independent learning may not.', note: '', x: 130, y: 450 },
+  { id: 'n5', type: 'UNKNOWN', text: 'Can students perform the same reasoning without AI?', note: '', x: 30, y: 670 },
+  { id: 'n6', type: 'EVIDENCE', text: 'AI-assisted students completed tasks 30% faster.', cite: 'Smith et al., 2025', note: '', x: 350, y: 670 },
+  { id: 'n7', type: 'QUESTION', text: "How does early AI assistance affect students' ability to reproduce reasoning independently?", scope: ['University students', 'Generative AI', 'Independent reasoning'], note: '', x: 30, y: 890 }
+];
+const seedEdges = () => [
+  { id: 'e1', from: 'n1', to: 'n2', rel: 'raises' },
+  { id: 'e2', from: 'n1', to: 'n3', rel: 'raises' },
+  { id: 'e3', from: 'n2', to: 'n4', rel: 'reveals' },
+  { id: 'e4', from: 'n4', to: 'n5', rel: 'leaves uncertain' },
+  { id: 'e5', from: 'n4', to: 'n6', rel: 'supports' },
+  { id: 'e6', from: 'n5', to: 'n7', rel: 'leads to' }
+];
+
+class Component extends DCLogic {
+  state = {
+    theme: 'light', view: 'focus', role: 'student', title: 'AI and independent reasoning',
+    nodes: seedNodes(), edges: seedEdges(), sel: 'n4', multi: [], hover: null,
+    collapsed: {}, isolate: false,
+    pan: { x: 60, y: 0 }, zoom: 0.82,
+    drag: null, panning: null, box: null,
+    connectFrom: null, relPopover: null, relCustom: '',
+    branch: null, branchCustom: '', branchType: 'Wonder',
+    inlineOpen: true, inlineAnswer: '', inlineHint: 0, editText: false,
+    thread: [], ask: '',
+    tab: 'coach', query: 'AI independent reasoning university students', filters: { Academic: true },
+    savedIds: ['s-smith'], srcDrag: null, interpret: null,
+    evolved: false, menu: null, collapsedProjects: {},
+    history: [], future: []
+  };
+
+  // ---------- model ----------
+  node = id => this.state.nodes.find(n => n.id === id);
+  childEdges = id => this.state.edges.filter(e => e.from === id);
+  parentEdge = id => this.state.edges.find(e => e.to === id);
+  h = n => H[n.type] || 112;
+
+  ancestors(id) {
+    const out = []; let cur = id, guard = 0;
+    while (guard++ < 30) {
+      const pe = this.parentEdge(cur); if (!pe) break;
+      const p = this.node(pe.from); if (!p) break;
+      out.unshift({ node: p, rel: (this.parentEdge(p.id) || {}).rel || '' }); cur = pe.from;
+    }
+    return out;
+  }
+  subtree(id) {
+    const out = []; const walk = i => this.childEdges(i).forEach(e => { out.push(e.to); walk(e.to); });
+    walk(id); return out;
+  }
+  hiddenSet() {
+    const hid = {};
+    Object.keys(this.state.collapsed).forEach(id => { if (this.state.collapsed[id]) this.subtree(id).forEach(c => { hid[c] = true; }); });
+    if (this.state.isolate && this.state.sel) {
+      const keep = {}; keep[this.state.sel] = true;
+      this.ancestors(this.state.sel).forEach(a => { keep[a.node.id] = true; });
+      this.subtree(this.state.sel).forEach(c => { keep[c] = true; });
+      this.state.nodes.forEach(n => { if (!keep[n.id]) hid[n.id] = true; });
+    }
+    return hid;
+  }
+
+  snap = () => this.setState(s => ({ history: s.history.concat([{ nodes: s.nodes, edges: s.edges }]).slice(-40), future: [] }));
+  onUndo = () => this.setState(s => s.history.length ? { nodes: s.history[s.history.length - 1].nodes, edges: s.history[s.history.length - 1].edges, history: s.history.slice(0, -1), future: s.future.concat([{ nodes: s.nodes, edges: s.edges }]) } : {});
+  onRedo = () => this.setState(s => s.future.length ? { nodes: s.future[s.future.length - 1].nodes, edges: s.future[s.future.length - 1].edges, future: s.future.slice(0, -1), history: s.history.concat([{ nodes: s.nodes, edges: s.edges }]) } : {});
+
+  coach = t => COACH[t] || COACH.DEFAULT;
+  say = (text, opts) => this.setState(s => ({ thread: s.thread.concat([Object.assign({ id: nid('m'), from: 'coach', text: text }, opts || {})]) }));
+  saidBy = text => this.setState(s => ({ thread: s.thread.concat([{ id: nid('m'), from: 'student', text: text }]) }));
+
+  select = (id, additive) => {
+    if (this.state.connectFrom) {
+      if (id !== this.state.connectFrom) {
+        const from = this.state.connectFrom;
+        this.setState({ relPopover: { mode: 'new', from: from, to: id }, connectFrom: null, relCustom: '' });
+      } else this.setState({ connectFrom: null });
+      return;
+    }
+    if (additive) {
+      this.setState(s => ({ multi: s.multi.indexOf(id) >= 0 ? s.multi.filter(m => m !== id) : s.multi.concat([id]) }));
+      return;
+    }
+    this.setState({ sel: id, multi: [], inlineOpen: true, inlineAnswer: '', inlineHint: 0, editText: false });
+  };
+
+  // ---------- creating thoughts ----------
+  place(parentId, type) {
+    const p = this.node(parentId);
+    if (!p) return { x: 300, y: 300 };
+    const sibs = this.childEdges(parentId).map(e => this.node(e.to)).filter(Boolean);
+    const y = p.y + this.h(p) + 82;
+    if (!sibs.length) return { x: p.x - 20, y: y };
+    const maxX = Math.max.apply(null, sibs.map(s => s.x));
+    return { x: maxX + W + 48, y: y };
+  }
+
+  addThought = (parentId, type, text, rel, extras) => {
+    this.snap();
+    const pos = this.place(parentId, type);
+    const n = Object.assign({ id: nid(), type: type, text: text, note: '', x: pos.x, y: pos.y }, extras || {});
+    if (type === 'TENSION' && !n.partA) { const parts = text.split(/,\s*but\s+/i); n.partA = parts[0]; n.partB = parts[1] || ''; }
+    this.setState(s => ({
+      nodes: s.nodes.concat([n]),
+      edges: parentId ? s.edges.concat([{ id: nid('e'), from: parentId, to: n.id, rel: rel || 'leads to' }]) : s.edges,
+      sel: n.id, multi: [], inlineOpen: true, inlineAnswer: '', inlineHint: 0, branch: null, branchCustom: '', editText: !text, view: 'focus'
+    }));
+    return n;
+  };
+
+  onSuggestCreate = () => {
+    const cur = this.node(this.state.sel); if (!cur) return;
+    const c = this.coach(cur.type);
+    const existing = this.childEdges(cur.id).map(e => this.node(e.to)).filter(n => n && n.type === c.childType);
+    if (existing.length) { this.select(existing[0].id); this.say('You already have a ' + c.childType.toLowerCase() + ' from here. I have moved you to it — branch again if you want a second reading.'); return; }
+    this.setState({ branch: { from: cur.id, prefill: c.childType }, branchCustom: '', branchType: c.childType.charAt(0) + c.childType.slice(1).toLowerCase() });
+  };
+
+  onBranchOpen = () => this.setState({ branch: { from: this.state.sel }, branchCustom: '', branchType: 'Wonder' });
+  onCloseBranch = () => this.setState({ branch: null, branchCustom: '' });
+  onBranchCustom = e => this.setState({ branchCustom: e.target.value });
+  onBranchType = e => this.setState({ branchType: e.target.value });
+
+  pickBranch = opt => {
+    const from = this.state.branch.from;
+    const n = this.addThought(from, opt.type, '', this.relFor(opt.type));
+    this.say('New direction open. Write it in your own words — I will not fill it in.');
+    this.setState({ view: this.state.view, sel: n.id });
+  };
+  onBranchCreate = () => {
+    const txt = (this.state.branchCustom || '').trim(); if (!txt) return;
+    const type = this.state.branchType.toUpperCase();
+    this.addThought(this.state.branch.from, type, txt, this.relFor(type));
+  };
+  relFor = t => ({ WONDER: 'raises', TENSION: 'reveals', UNKNOWN: 'leaves uncertain', QUESTION: 'leads to', EVIDENCE: 'supports', CHALLENGE: 'challenges', ALTERNATIVE: 'alternative to', ASSUMPTION: 'depends on' })[t] || 'leads to';
+
+  // ---------- node actions ----------
+  onText = e => {
+    const v = e.target.value; const id = this.state.sel;
+    this.setState(s => ({
+      nodes: s.nodes.map(n => {
+        if (n.id !== id) return n;
+        const next = Object.assign({}, n, { text: v });
+        if (n.type === 'TENSION') { const p = v.split(/,\s*but\s+/i); next.partA = p[0]; next.partB = p[1] || ''; }
+        return next;
+      })
+    }));
+  };
+  onDoneEdit = () => { if ((this.node(this.state.sel) || {}).text) this.setState({ editText: false }); };
+  onRevise = () => this.setState({ editText: true });
+
+  onNote = e => { const v = e.target.value; const id = this.state.sel; this.setState(s => ({ nodes: s.nodes.map(n => n.id === id ? Object.assign({}, n, { note: v }) : n) })); };
+  setText = (id, v) => this.setState(s => ({ nodes: s.nodes.map(n => n.id === id ? Object.assign({}, n, { text: v }) : n) }));
+
+  duplicate = id => { const n = this.node(id); if (!n) return; this.snap(); const c = Object.assign({}, n, { id: nid(), x: n.x + 40, y: n.y + 36 }); this.setState(s => ({ nodes: s.nodes.concat([c]), sel: c.id })); };
+  detach = id => { this.snap(); this.setState(s => ({ edges: s.edges.filter(e => e.to !== id) })); };
+  del = id => {
+    this.snap();
+    const kids = this.childEdges(id).map(e => e.to);
+    const pe = this.parentEdge(id);
+    this.setState(s => ({
+      nodes: s.nodes.filter(n => n.id !== id),
+      edges: s.edges.filter(e => e.to !== id && e.from !== id).concat(pe ? kids.map(k => ({ id: nid('e'), from: pe.from, to: k, rel: 'leads to' })) : []),
+      sel: pe ? pe.from : (s.nodes[0] || {}).id
+    }));
+  };
+  toggleCollapse = id => this.setState(s => ({ collapsed: Object.assign({}, s.collapsed, { [id]: !s.collapsed[id] }) }));
+  changeType = (id, t) => { this.snap(); this.setState(s => ({ nodes: s.nodes.map(n => n.id === id ? Object.assign({}, n, { type: t }) : n), menu: null })); };
+
+  nodeMenu = (ev, id) => {
+    ev.preventDefault(); ev.stopPropagation();
+    const kids = this.subtree(id).length;
+    this.openMenu(ev, [
+      { label: 'Change type →', onClick: e => this.openMenu(e, TYPES.map(t => ({ label: t, onClick: () => this.changeType(id, t.toUpperCase()) }))) },
+      { label: this.state.collapsed[id] ? 'Expand branch' : 'Collapse branch', disabled: !kids, onClick: () => { this.toggleCollapse(id); this.setState({ menu: null }); } },
+      { label: 'Duplicate', onClick: () => { this.duplicate(id); this.setState({ menu: null }); } },
+      { label: 'Detach from parent', onClick: () => { this.detach(id); this.setState({ menu: null }); } },
+      '-',
+      { label: 'Delete thought', danger: true, onClick: () => { this.del(id); this.setState({ menu: null }); } }
+    ]);
+  };
+  openMenu = (ev, items) => {
+    ev.preventDefault(); ev.stopPropagation();
+    this.setState({ menu: { x: Math.min(ev.clientX, window.innerWidth - 230), y: Math.min(ev.clientY, window.innerHeight - 260), items: items } });
+  };
+  onCloseMenu = ev => { if (ev && ev.preventDefault) ev.preventDefault(); this.setState({ menu: null }); };
+  onTopicMenu = ev => this.openMenu(ev, [
+    { label: 'Rename' }, { label: 'Pin' }, { label: 'Move to project' }, '-',
+    { label: 'Share' }, { label: 'Archive' }, { label: 'Delete', danger: true }
+  ]);
+  onDocMenu = ev => this.openMenu(ev, [
+    { label: 'Rename' }, { label: 'Duplicate project' }, { label: 'Export reasoning' }, '-',
+    { label: 'Archive' }, { label: 'Delete', danger: true }
+  ]);
+  onChangeTypeCur = ev => this.openMenu(ev, TYPES.map(t => ({ label: t, onClick: () => this.changeType(this.state.sel, t.toUpperCase()) })));
+
+  // ---------- connect / relations ----------
+  startConnect = id => this.setState({ connectFrom: id, view: 'map' });
+  onCancelConnect = () => this.setState({ connectFrom: null });
+  onCloseRel = () => this.setState({ relPopover: null, relCustom: '' });
+  onRelCustom = e => this.setState({ relCustom: e.target.value });
+  onRelKey = e => { if (e.key === 'Enter') this.onRelCustomSave(); };
+  onRelCustomSave = () => { const v = (this.state.relCustom || '').trim(); if (v) this.applyRel(v); };
+  applyRel = rel => {
+    const p = this.state.relPopover; if (!p) return;
+    this.snap();
+    if (p.mode === 'new') {
+      this.setState(s => ({ edges: s.edges.concat([{ id: nid('e'), from: p.from, to: p.to, rel: rel }]), relPopover: null, relCustom: '', sel: p.to }));
+    } else {
+      this.setState(s => ({ edges: s.edges.map(e => e.id === p.edgeId ? Object.assign({}, e, { rel: rel }) : e), relPopover: null, relCustom: '' }));
+    }
+  };
+  removeRelLabel = () => { const p = this.state.relPopover; this.snap(); this.setState(s => ({ edges: s.edges.map(e => e.id === p.edgeId ? Object.assign({}, e, { rel: '' }) : e), relPopover: null })); };
+  deleteEdge = () => { const p = this.state.relPopover; this.snap(); this.setState(s => ({ edges: s.edges.filter(e => e.id !== p.edgeId), relPopover: null })); };
+
+  // ---------- canvas interaction ----------
+  setCanvas = el => { this.canvas = el; };
+  toWorld = (cx, cy) => {
+    const r = this.canvas ? this.canvas.getBoundingClientRect() : { left: 0, top: 0 };
+    return { x: (cx - r.left - this.state.pan.x) / this.state.zoom, y: (cy - r.top - this.state.pan.y) / this.state.zoom };
+  };
+  onCanvasDown = ev => {
+    if (ev.button !== 0) return;
+    if (ev.shiftKey) { const w = this.toWorld(ev.clientX, ev.clientY); this.setState({ box: { x0: w.x, y0: w.y, x1: w.x, y1: w.y } }); return; }
+    this.setState({ panning: { x: ev.clientX, y: ev.clientY, px: this.state.pan.x, py: this.state.pan.y }, multi: [] });
+  };
+  onNodeDown = (ev, id) => {
+    if (ev.button !== 0) return;
+    ev.stopPropagation();
+    if (this.state.connectFrom) { this.select(id); return; }
+    if (ev.shiftKey) { this.select(id, true); return; }
+    const n = this.node(id);
+    const w = this.toWorld(ev.clientX, ev.clientY);
+    this.setState({ sel: id, multi: [], drag: { id: id, dx: w.x - n.x, dy: w.y - n.y, moved: false }, inlineOpen: true, inlineAnswer: '', inlineHint: 0 });
+  };
+  onRootMove = ev => {
+    const s = this.state;
+    if (s.srcDrag) { this.setState({ srcDrag: Object.assign({}, s.srcDrag, { x: ev.clientX, y: ev.clientY, active: true }) }); return; }
+    if (s.drag) {
+      const w = this.toWorld(ev.clientX, ev.clientY);
+      if (!s.drag.moved) this.snap();
+      this.setState(st => ({ drag: Object.assign({}, st.drag, { moved: true }), nodes: st.nodes.map(n => n.id === st.drag.id ? Object.assign({}, n, { x: Math.round((w.x - st.drag.dx) / 8) * 8, y: Math.round((w.y - st.drag.dy) / 8) * 8 }) : n) }));
+      return;
+    }
+    if (s.panning) { this.setState({ pan: { x: s.panning.px + (ev.clientX - s.panning.x), y: s.panning.py + (ev.clientY - s.panning.y) } }); return; }
+    if (s.box) { const w = this.toWorld(ev.clientX, ev.clientY); this.setState(st => ({ box: Object.assign({}, st.box, { x1: w.x, y1: w.y }) })); }
+  };
+  onRootUp = ev => {
+    const s = this.state;
+    if (s.srcDrag && s.srcDrag.active) { this.dropSource(ev); return; }
+    if (s.box) {
+      const b = s.box;
+      const x0 = Math.min(b.x0, b.x1), x1 = Math.max(b.x0, b.x1), y0 = Math.min(b.y0, b.y1), y1 = Math.max(b.y0, b.y1);
+      const hit = s.nodes.filter(n => n.x + W > x0 && n.x < x1 && n.y + this.h(n) > y0 && n.y < y1).map(n => n.id);
+      this.setState({ box: null, multi: hit });
+      return;
+    }
+    this.setState({ drag: null, panning: null, srcDrag: null });
+  };
+  onWheel = ev => {
+    if (ev.metaKey || ev.ctrlKey) {
+      ev.preventDefault();
+      const f = ev.deltaY < 0 ? 1.08 : 0.93;
+      this.setState(s => ({ zoom: Math.max(0.35, Math.min(1.8, s.zoom * f)) }));
+    } else {
+      this.setState(s => ({ pan: { x: s.pan.x - ev.deltaX, y: s.pan.y - ev.deltaY } }));
+    }
+  };
+  onZoomIn = () => this.setState(s => ({ zoom: Math.min(1.8, s.zoom * 1.15) }));
+  onZoomOut = () => this.setState(s => ({ zoom: Math.max(0.35, s.zoom / 1.15) }));
+  onFit = () => {
+    const hid = this.hiddenSet();
+    const ns = this.state.nodes.filter(n => !hid[n.id]); if (!ns.length) return;
+    const minX = Math.min.apply(null, ns.map(n => n.x)), maxX = Math.max.apply(null, ns.map(n => n.x + W));
+    const minY = Math.min.apply(null, ns.map(n => n.y)), maxY = Math.max.apply(null, ns.map(n => n.y + this.h(n)));
+    const r = this.canvas ? this.canvas.getBoundingClientRect() : { width: 900, height: 700 };
+    const z = Math.max(0.55, Math.min(1.2, Math.min((r.width - 120) / (maxX - minX), (r.height - 120) / (maxY - minY))));
+    this.setState({ zoom: z, pan: { x: (r.width - (maxX - minX) * z) / 2 - minX * z, y: (r.height - (maxY - minY) * z) / 2 - minY * z } });
+  };
+  onOrganize = () => {
+    this.snap();
+    const roots = this.state.nodes.filter(n => !this.parentEdge(n.id));
+    const pos = {}; let cursor = 40;
+    const layout = (id, depth) => {
+      const kids = this.childEdges(id).map(e => e.to).filter(k => this.node(k));
+      const n = this.node(id);
+      if (!kids.length || this.state.collapsed[id]) { pos[id] = { x: cursor, y: 40 + depth * 220 }; cursor += W + 56; return pos[id].x; }
+      const xs = kids.map(k => layout(k, depth + 1));
+      const x = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2;
+      pos[id] = { x: x, y: 40 + depth * 220 };
+      return x;
+    };
+    roots.forEach(r => { layout(r.id, 0); cursor += 40; });
+    this.setState(s => ({ nodes: s.nodes.map(n => pos[n.id] ? Object.assign({}, n, pos[n.id]) : n) }));
+    setTimeout(this.onFit, 30);
+  };
+  onFocusSelected = () => this.setState(s => ({ isolate: !s.isolate }));
+
+  // ---------- source drag ----------
+  onSrcDown = (ev, paper) => {
+    ev.preventDefault();
+    this.setState({ srcDrag: { paper: paper, x: ev.clientX, y: ev.clientY, active: false } });
+  };
+  dropSource = ev => {
+    const paper = this.state.srcDrag.paper;
+    const r = this.canvas ? this.canvas.getBoundingClientRect() : null;
+    const inCanvas = r && ev.clientX > r.left && ev.clientX < r.right && ev.clientY > r.top && ev.clientY < r.bottom;
+    if (!inCanvas) { this.setState({ srcDrag: null }); return; }
+    const w = this.toWorld(ev.clientX, ev.clientY);
+    const hid = this.hiddenSet();
+    const target = this.state.nodes.filter(n => !hid[n.id]).find(n => w.x > n.x && w.x < n.x + W && w.y > n.y && w.y < n.y + this.h(n));
+    this.setState({ srcDrag: null, savedIds: this.state.savedIds.indexOf(paper.id) >= 0 ? this.state.savedIds : this.state.savedIds.concat([paper.id]) });
+    if (!target) { this.snap(); const n = this.addThought(null, 'SOURCE', paper.title, null, { cite: paper.cite, x: Math.round(w.x - W / 2), y: Math.round(w.y - 40), finding: paper.finding }); this.say('Source placed on the canvas. It is material, not a conclusion — your reading of it is what becomes evidence.', { save: false }); return; }
+    if (target.type === 'EVIDENCE') { this.snap(); this.setState(s => ({ nodes: s.nodes.map(n => n.id === target.id ? Object.assign({}, n, { cite: paper.cite }) : n) })); this.say('Citation attached to your evidence. The claim it carries is still yours.'); return; }
+    this.setState({ interpret: { paper: paper, targetId: target.id, rel: null, text: '', pos: { x: w.x, y: w.y } } });
+  };
+  pickInterpretRel = rel => this.setState(s => ({ interpret: Object.assign({}, s.interpret, { rel: rel }) }));
+  onInterpretText = e => this.setState(s => ({ interpret: Object.assign({}, s.interpret, { text: e.target.value }) }));
+  onCloseInterpret = () => this.setState({ interpret: null });
+  onKeepSource = () => {
+    const it = this.state.interpret; const t = this.node(it.targetId);
+    this.snap();
+    const n = this.addThought(it.targetId, 'SOURCE', it.paper.title, it.rel || 'background', { cite: it.paper.cite, finding: it.paper.finding });
+    this.setState({ interpret: null, sel: n.id });
+    this.say('Kept as a source under your ' + t.type.toLowerCase() + '. Nothing has been concluded from it.');
+  };
+  onCreateEvidence = () => {
+    const it = this.state.interpret; if (!(it.text || '').trim()) return;
+    const t = this.node(it.targetId);
+    this.snap();
+    const n = this.addThought(it.targetId, 'EVIDENCE', it.text.trim(), it.rel || 'supports', { cite: it.paper.cite, finding: it.paper.finding });
+    this.setState({ interpret: null, sel: n.id });
+    this.say('Your interpretation is the evidence; the citation sits under it. If someone disputes the reading, they dispute you, not the paper.');
+  };
+
+  // ---------- coach ----------
+  onExplore = () => {
+    const cur = this.node(this.state.sel);
+    this.setState({ inlineOpen: true, view: 'focus' });
+    this.say(this.coach(cur.type).rec, { save: true });
+  };
+  onInlineAnswer = e => this.setState({ inlineAnswer: e.target.value });
+  onSkipInline = () => this.setState({ inlineOpen: false });
+  onRespond = () => {
+    const v = (this.state.inlineAnswer || '').trim(); if (!v) return;
+    const cur = this.node(this.state.sel);
+    this.saidBy(v);
+    this.setState({ inlineAnswer: '', inlineOpen: false });
+    this.say('Noted. That is now part of your reasoning about this ' + cur.type.toLowerCase() + ' — not mine.');
+    this.say(this.coach(cur.type).suggest + ' You can create it, or branch another way.');
+  };
+  onSaveAsThought = () => {
+    const v = (this.state.inlineAnswer || '').trim(); if (!v) return;
+    const cur = this.node(this.state.sel);
+    this.addThought(cur.id, this.coach(cur.type).childType, v, this.relFor(this.coach(cur.type).childType));
+    this.setState({ inlineAnswer: '', inlineOpen: true });
+  };
+  onInlineHint = () => {
+    const cur = this.node(this.state.sel);
+    const list = HINTS[cur.type] || HINTS.DEFAULT;
+    const i = Math.min(this.state.inlineHint, list.length - 1);
+    this.setState(s => ({ inlineHint: s.inlineHint + 1 }));
+    this.say(list[i]);
+  };
+  onAsk = e => this.setState({ ask: e.target.value });
+  onAskKey = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.onSend(); } };
+  onSend = () => {
+    const q = (this.state.ask || '').trim(); if (!q) return;
+    const cur = this.node(this.state.sel);
+    this.setState({ ask: '' }); this.saidBy(q);
+    if (/give me (a|the) (research )?question|write (my|the) question|just tell me/i.test(q)) {
+      this.say('I will not write it. You have an observation, a tension and an unknown — the question is the unknown made specific.');
+      this.say(this.coach(cur.type).prompt);
+      return;
+    }
+    if (/stuck|don'?t know|no idea|help/i.test(q)) { this.onInlineHint(); return; }
+    this.say('You seem to be saying that ' + q.replace(/^i (think|feel) (that )?/i, '').replace(/[.?!]$/, '') + '.', { save: true });
+    this.say(this.coach(cur.type).prompt);
+  };
+  onChallenge = () => {
+    const cur = this.node(this.state.sel);
+    this.say('You are assuming that the visible gain and the hidden cost can be told apart by the same measure.');
+    this.say('What alternative explanation would produce the same observation?', { save: true });
+  };
+  challengeNode = id => { this.select(id); this.onChallenge(); this.setState({ view: 'focus' }); };
+  evidenceFor = id => { this.select(id); this.setState({ tab: 'search' }); this.say('Search for work that speaks to this, then drag a result onto the thought. I will ask what you think it shows.'); };
+
+  onTheme = () => this.setState(s => ({ theme: s.theme === 'light' ? 'dark' : 'light' }));
+  onFocusMode = () => this.setState({ view: 'focus' });
+  onMapMode = () => { this.setState({ view: 'map' }); setTimeout(this.onFit, 40); };
+  onTitle = e => this.setState({ title: e.target.value });
+  onEvolved = () => this.setState({ evolved: true });
+  onCloseEvolved = () => this.setState({ evolved: false });
+  setTab = t => this.setState({ tab: t });
+  onQuery = e => this.setState({ query: e.target.value });
+  toggleFilter = f => this.setState(s => ({ filters: Object.assign({}, s.filters, { [f]: !s.filters[f] }) }));
+  toggleSave = id => this.setState(s => ({ savedIds: s.savedIds.indexOf(id) >= 0 ? s.savedIds.filter(x => x !== id) : s.savedIds.concat([id]) }));
+  stop = ev => { ev.stopPropagation(); };
+
+  renderVals() {
+    const s = this.state;
+    const cur = this.node(s.sel) || s.nodes[0];
+    const c = this.coach(cur ? cur.type : 'DEFAULT');
+    const hid = this.hiddenSet();
+    const noteDef = NOTE[cur.type] || NOTE.DEFAULT;
+    const editing = s.editText || !(cur.text || '').trim();
+
+    // vocabulary strip
+    const used = {}; s.nodes.forEach(n => { used[n.type] = (used[n.type] || 0) + 1; });
+    const vocabList = ['NOTICE', 'WONDER', 'TENSION', 'UNKNOWN', 'QUESTION'].concat(Object.keys(used).filter(t => ['NOTICE', 'WONDER', 'TENSION', 'UNKNOWN', 'QUESTION'].indexOf(t) < 0));
+    const vocab = vocabList.map((t, i) => {
+      const n = used[t] || 0;
+      const isCur = cur && cur.type === t;
+      return {
+        label: t.charAt(0) + t.slice(1).toLowerCase() + (n > 1 ? ' ×' + n : ''),
+        hasDot: i < vocabList.length - 1,
+        onClick: () => { const f = s.nodes.find(x => x.type === t); if (f) this.select(f.id); },
+        style: 'font-size:12px;letter-spacing:0.01em;color:' + (isCur ? 'var(--brand)' : n ? 'var(--text-2)' : 'var(--text-3)') + ';' + (n ? '' : 'opacity:0.7;') + (isCur ? 'font-weight:500;' : '')
+      };
+    });
+    const typesUsed = Object.keys(used).length;
+
+    // focus trail
+    const anc = this.ancestors(cur.id);
+    const trail = anc.map((a, i) => {
+      const sibs = this.childEdges(a.node.id).length;
+      return {
+        id: a.node.id, type: a.node.type, text: a.node.text || 'Empty thought — open it to write.',
+        hasRel: i > 0, rel: a.rel, hasSiblings: sibs > 1, siblingNote: sibs + ' directions',
+        onSelect: () => this.select(a.node.id),
+        style: 'display:block;width:100%;text-align:left;padding:12px 14px;border:1px solid transparent;border-radius:10px;' + (i > 0 ? '' : '')
+      };
+    });
+    const pe = this.parentEdge(cur.id);
+
+    const curActions = [
+      { label: '+ Add evidence', onClick: () => this.evidenceFor(cur.id) },
+      { label: 'Challenge this', onClick: this.onChallenge },
+      { label: 'Branch from here', onClick: this.onBranchOpen },
+      { label: 'Connect thought', onClick: () => this.startConnect(cur.id) },
+      { label: 'Revise', onClick: this.onRevise },
+      { label: '⋯', onClick: ev => this.nodeMenu(ev, cur.id) }
+    ].map(a => ({ label: a.label, onClick: a.onClick, style: 'font-size:12.5px;color:var(--text-2);' }));
+
+    const dirs = this.childEdges(cur.id).map(e => ({ n: this.node(e.to), rel: e.rel })).filter(d => d.n).map(d => ({
+      id: d.n.id, type: d.n.type, rel: d.rel, text: d.n.text || 'Empty — open it to write.',
+      onSelect: () => this.select(d.n.id)
+    }));
+
+    // map geometry
+    const visible = s.nodes.filter(n => !hid[n.id]);
+    const edgeList = [], labelList = [];
+    s.edges.forEach(e => {
+      const a = this.node(e.from), b = this.node(e.to);
+      if (!a || !b || hid[a.id] || hid[b.id]) return;
+      const x1 = a.x + W / 2, y1 = a.y + this.h(a), x2 = b.x + W / 2, y2 = b.y;
+      const mid = (y1 + y2) / 2;
+      edgeList.push({
+        id: e.id, d: 'M' + x1 + ',' + y1 + ' C' + x1 + ',' + mid + ' ' + x2 + ',' + mid + ' ' + x2 + ',' + y2,
+        stroke: (s.sel === e.from || s.sel === e.to) ? 'var(--border-2)' : 'var(--border)',
+        w: 1, dash: b.type === 'SOURCE' || a.type === 'SOURCE' ? '3 4' : '0'
+      });
+      if (e.rel) labelList.push({
+        id: e.id, label: e.rel,
+        onClick: ev => { ev.stopPropagation(); this.setState({ relPopover: { mode: 'edit', edgeId: e.id, x: ev.clientX, y: ev.clientY }, relCustom: '' }); },
+        style: 'position:absolute;left:' + ((x1 + x2) / 2) + 'px;top:' + (mid - 9) + 'px;transform:translateX(-50%);font-size:10px;letter-spacing:0.06em;color:var(--text-3);background:var(--bg);padding:1px 6px;border-radius:5px;white-space:nowrap;'
+      });
+    });
+
+    const mapNodes = visible.map(n => {
+      const sel = s.sel === n.id, multi = s.multi.indexOf(n.id) >= 0, hov = s.hover === n.id;
+      const kids = this.subtree(n.id).length;
+      const collapsed = !!s.collapsed[n.id] && kids > 0;
+      const isEvi = n.type === 'EVIDENCE', isSrc = n.type === 'SOURCE';
+      return {
+        id: n.id,
+        wrapStyle: 'position:absolute;left:' + n.x + 'px;top:' + n.y + 'px;width:' + W + 'px;cursor:' + (s.connectFrom ? 'crosshair' : 'grab') + ';z-index:' + (sel ? 4 : 2) + ';',
+        cardStyle: 'border:1px solid ' + (sel ? 'var(--brand)' : multi ? 'var(--text-3)' : hov ? 'var(--border-2)' : 'var(--border)') + ';background:' + (isSrc ? 'var(--ext-soft)' : 'var(--surface)') + ';border-radius:11px;padding:14px 15px;box-shadow:' + (sel ? '0 2px 10px rgba(0,0,0,0.07)' : 'none') + ';transition:border-color 0.15s ease,box-shadow 0.15s ease;' + (isEvi ? 'border-left:2px solid var(--ext);' : ''),
+        labelStyle: 'font-size:9.5px;letter-spacing:0.1em;color:' + (sel ? 'var(--brand)' : isEvi || isSrc ? 'var(--ext)' : 'var(--text-3)') + ';',
+        textStyle: 'font-size:' + (n.type === 'QUESTION' ? '14px' : '13.5px') + ';line-height:1.5;color:var(--text);',
+        type: n.type, text: n.text || 'Empty thought',
+        isCollapsed: collapsed, isNormal: !collapsed, isSelected: sel,
+        isTension: !collapsed && n.type === 'TENSION' && !!n.partB, isPlain: collapsed ? false : !(n.type === 'TENSION' && n.partB),
+        partA: n.partA, partB: n.partB,
+        insideNote: kids + ' thought' + (kids === 1 ? '' : 's') + ' inside',
+        onExpand: () => this.toggleCollapse(n.id),
+        hasMeta: !!(n.cite || (n.type === 'NOTICE' && n.note) || (n.type === 'QUESTION' && n.scope)),
+        metaLabel: n.cite ? 'SOURCE' : n.type === 'QUESTION' ? 'SCOPE' : 'OBSERVED FROM',
+        meta: n.cite ? n.cite : n.type === 'QUESTION' ? (n.scope || []).join(' · ') : n.note,
+        metaColor: n.cite ? 'var(--ext)' : 'var(--text-2)',
+        hasCta: n.type === 'CHALLENGE' || n.type === 'QUESTION' || isSrc,
+        cta: isSrc ? 'Interpret this source' : n.type === 'QUESTION' ? 'Refine question' : 'Explore this challenge',
+        onCta: () => { if (isSrc) { this.setState({ interpret: { paper: { id: n.id, cite: n.cite, title: n.text, finding: n.finding || '' }, targetId: n.id, rel: 'background', text: '' } }); } else { this.select(n.id); this.setState({ view: 'focus', inlineOpen: true }); } },
+        onDown: ev => this.onNodeDown(ev, n.id),
+        onEnter: () => this.setState({ hover: n.id }), onLeave: () => this.setState(st => ({ hover: st.hover === n.id ? null : st.hover })),
+        showToolbar: (sel || hov) && !s.connectFrom && !s.drag,
+        tools: [
+          { label: '+ Branch', onClick: ev => { ev.stopPropagation(); this.setState({ branch: { from: n.id }, branchCustom: '' }); } },
+          { label: '+ Evidence', onClick: ev => { ev.stopPropagation(); this.evidenceFor(n.id); } },
+          { label: 'Challenge', onClick: ev => { ev.stopPropagation(); this.challengeNode(n.id); } },
+          { label: 'Connect', onClick: ev => { ev.stopPropagation(); this.startConnect(n.id); } },
+          { label: 'Duplicate', onClick: ev => { ev.stopPropagation(); this.duplicate(n.id); } },
+          { label: '⋯', onClick: ev => this.nodeMenu(ev, n.id) }
+        ].map(t => ({ label: t.label, onClick: t.onClick, style: 'font-size:11.5px;color:var(--text-2);padding:4px 8px;border-radius:6px;white-space:nowrap;' }))
+      };
+    });
+
+    // ghost CTA under leaf nodes: relationship as invitation
+    const ghostCtas = [];
+    visible.forEach(n => {
+      if (this.childEdges(n.id).length || s.collapsed[n.id]) return;
+      const cc = this.coach(n.type);
+      ghostCtas.push({
+        id: 'g' + n.id, label: cc.cta + ' — ' + (n.type === 'NOTICE' ? 'this raises a question' : n.type === 'WONDER' ? 'this reveals a tension' : 'continue from here'),
+        onClick: ev => { ev.stopPropagation(); this.setState({ branch: { from: n.id, prefill: cc.childType }, branchType: cc.childType.charAt(0) + cc.childType.slice(1).toLowerCase(), branchCustom: '' }); },
+        style: 'position:absolute;left:' + (n.x + 10) + 'px;top:' + (n.y + this.h(n) + 18) + 'px;font-size:11px;color:var(--text-3);border:1px dashed var(--border-2);border-radius:7px;padding:4px 9px;background:var(--bg);white-space:nowrap;z-index:1;'
+      });
+    });
+
+    const box = s.box;
+    const b = box ? { x: Math.min(box.x0, box.x1), y: Math.min(box.y0, box.y1), w: Math.abs(box.x1 - box.x0), h: Math.abs(box.y1 - box.y0) } : null;
+
+    const qWords = (s.query || '').toLowerCase().split(/\s+/).filter(w => w.length > 3).map(w => w.replace(/s$/, ''));
+    const results = PAPERS.map(p => {
+      const hay = (p.title + ' ' + p.finding + ' ' + p.cite + ' ' + p.method).toLowerCase();
+      return { p: p, score: qWords.filter(w => hay.indexOf(w) >= 0).length };
+    }).filter(r => !qWords.length || r.score > 0 || qWords.length > 2).sort((a, b) => b.score - a.score).map(r => r.p);
+    const srcCard = p => ({
+      id: p.id, cite: p.cite, title: p.title, finding: p.finding, method: p.method,
+      onDown: ev => this.onSrcDown(ev, p),
+      style: 'border:1px solid var(--border);border-left:2px solid var(--ext);border-radius:10px;padding:13px 14px;background:var(--surface-2);cursor:grab;user-select:none;',
+      onSave: ev => { ev.stopPropagation(); this.toggleSave(p.id); },
+      saveLabel: s.savedIds.indexOf(p.id) >= 0 ? 'Saved' : 'Save',
+      saveStyle: 'font-size:11.5px;color:' + (s.savedIds.indexOf(p.id) >= 0 ? 'var(--ext)' : 'var(--text-2)') + ';',
+      usage: (() => { const n = s.nodes.filter(x => x.cite === p.cite).length; return n ? 'Used in ' + n + ' thought' + (n === 1 ? '' : 's') : 'Not yet interpreted'; })()
+    });
+
+    const thread = s.thread.map((m, i) => ({
+      id: m.id,
+      wrapStyle: 'margin-top:22px;padding-top:20px;border-top:1px solid var(--border);animation:fadeUp 0.26s ease both;',
+      labelStyle: 'font-size:10px;letter-spacing:0.09em;color:' + (m.from === 'coach' ? 'var(--brand)' : 'var(--text-3)') + ';margin-bottom:8px;',
+      label: m.from === 'coach' ? 'COACH' : 'YOU',
+      textStyle: 'font-size:13.5px;line-height:1.65;text-wrap:pretty;color:' + (m.from === 'coach' ? 'var(--text)' : 'var(--text-2)') + ';' + (m.from === 'coach' ? '' : 'font-style:italic;'),
+      text: m.text, hasSave: !!m.save,
+      onSave: () => { this.addThought(cur.id, this.coach(cur.type).childType, m.text, this.relFor(this.coach(cur.type).childType)); }
+    }));
+
+    const it = s.interpret;
+    const relStyleFor = active => 'font-size:11.5px;color:' + (active ? 'var(--brand)' : 'var(--text-2)') + ';border:1px solid ' + (active ? 'var(--brand)' : 'var(--border)') + ';border-radius:7px;padding:5px 10px;';
+
+    const menuItems = (s.menu ? s.menu.items : []).map(mi => mi === '-' ? { isDivider: true, isItem: false } : {
+      isItem: true, isDivider: false, label: mi.label,
+      onClick: mi.onClick || (() => this.setState({ menu: null })),
+      style: 'display:block;width:100%;text-align:left;padding:6px 10px;border-radius:7px;font-size:12.5px;opacity:' + (mi.disabled ? 0.4 : 1) + ';color:' + (mi.danger ? 'var(--danger)' : 'var(--text)') + ';'
+    });
+
+    const pop = s.relPopover;
+
+    return {
+      theme: s.theme, themeIcon: s.theme === 'light' ? '◐' : '◑', title: s.title, onTitle: this.onTitle,
+      stop: this.stop, onRootMove: this.onRootMove, onRootUp: this.onRootUp,
+      onTopicMenu: this.onTopicMenu, onDocMenu: this.onDocMenu, onTheme: this.onTheme, onEvolved: this.onEvolved,
+      projects: [
+        { name: 'AI & Learning', items: ['AI dependency', 'AI feedback', 'Transfer of reasoning'] },
+        { name: 'Digital Identity', items: ['Online self-presentation'] }
+      ].map(p => ({
+        name: p.name, items: p.items, open: !s.collapsedProjects[p.name],
+        onToggle: () => this.setState(st => ({ collapsedProjects: Object.assign({}, st.collapsedProjects, { [p.name]: !st.collapsedProjects[p.name] }) })),
+        caretStyle: 'font-size:12px;color:var(--text-3);display:block;transition:transform 0.18s ease;transform:rotate(' + (s.collapsedProjects[p.name] ? '0deg' : '90deg') + ');'
+      })),
+      history: [
+        { label: 'TODAY', items: ['AI and critical thinking'] },
+        { label: 'YESTERDAY', items: ['Trust in AI feedback'] },
+        { label: 'LAST 7 DAYS', items: ['Algorithmic authority'] }
+      ],
+      onStudent: () => this.setState({ role: 'student' }), onInstructor: () => this.setState({ role: 'instructor' }),
+      studentTabStyle: 'flex:1;padding:5px 0;border-radius:6px;font-size:11.5px;text-align:center;' + (s.role === 'student' ? 'background:var(--surface);color:var(--text);box-shadow:0 1px 1px rgba(0,0,0,0.04);' : 'color:var(--text-3);'),
+      instructorTabStyle: 'flex:1;padding:5px 0;border-radius:6px;font-size:11.5px;text-align:center;' + (s.role === 'instructor' ? 'background:var(--surface);color:var(--text);box-shadow:0 1px 1px rgba(0,0,0,0.04);' : 'color:var(--text-3);'),
+
+      isFocus: s.view === 'focus', isMap: s.view === 'map',
+      onFocus: this.onFocusMode, onMap: this.onMapMode,
+      focusTabStyle: 'padding:5px 14px;border-radius:6px;font-size:12px;' + (s.view === 'focus' ? 'background:var(--surface);color:var(--text);box-shadow:0 1px 1px rgba(0,0,0,0.04);' : 'color:var(--text-3);'),
+      mapTabStyle: 'padding:5px 14px;border-radius:6px;font-size:12px;' + (s.view === 'map' ? 'background:var(--surface);color:var(--text);box-shadow:0 1px 1px rgba(0,0,0,0.04);' : 'color:var(--text-3);'),
+
+      vocab: vocab, vocabCount: typesUsed + ' types across ' + s.nodes.length + ' thoughts',
+
+      trail: trail, currentRel: pe ? pe.rel : 'starting point',
+      cur: {
+        type: cur.type, text: cur.text || 'Empty thought — write it below.',
+        isEditing: editing, editValue: cur.text || '', onText: this.onText, onDone: this.onDoneEdit,
+        doneDisabled: !(cur.text || '').trim(),
+        doneStyle: 'font-size:12.5px;padding:6px 13px;border-radius:8px;border:1px solid ' + ((cur.text || '').trim() ? 'var(--brand)' : 'var(--border)') + ';color:' + ((cur.text || '').trim() ? 'var(--brand)' : 'var(--text-3)') + ';',
+        editHint: cur.type === 'TENSION' ? 'Write “Although ___, ___” or “___, but ___” and the two halves will split.' : 'Your wording is kept exactly as you write it.',
+        isTension: !editing && cur.type === 'TENSION' && !!cur.partB, isPlain: !editing && !(cur.type === 'TENSION' && cur.partB),
+        partA: cur.partA, partB: cur.partB,
+        hasCite: !!cur.cite, cite: cur.cite,
+        hasScope: !!cur.scope, scope: cur.scope || [],
+        noteLabel: noteDef[0], notePlaceholder: noteDef[1], hasSecondary: !!noteDef[2], secondary: noteDef[2],
+        note: cur.note || '', onNote: this.onNote,
+        actions: curActions, onChangeType: this.onChangeTypeCur
+      },
+
+      inline: s.inlineOpen, inlineReflect: c.reflect, inlinePrompt: c.prompt,
+      inlineAnswer: s.inlineAnswer, onInlineAnswer: this.onInlineAnswer,
+      onRespond: this.onRespond, onSkipInline: this.onSkipInline, onInlineHint: this.onInlineHint, onSaveAsThought: this.onSaveAsThought,
+      respondDisabled: !(s.inlineAnswer || '').trim(),
+      respondStyle: 'font-size:12.5px;padding:7px 14px;border-radius:8px;border:1px solid ' + ((s.inlineAnswer || '').trim() ? 'var(--brand)' : 'var(--border)') + ';color:' + ((s.inlineAnswer || '').trim() ? 'var(--brand)' : 'var(--text-3)') + ';',
+      saveThoughtStyle: 'font-size:12.5px;padding:7px 11px;border-radius:8px;color:' + ((s.inlineAnswer || '').trim() ? 'var(--text-2)' : 'var(--text-3)') + ';',
+
+      hasDirections: dirs.length > 0, directions: dirs,
+      suggestText: c.suggest, suggestCta: c.cta, onSuggestCreate: this.onSuggestCreate, onBranchOpen: this.onBranchOpen,
+
+      setCanvas: this.setCanvas, onCanvasDown: this.onCanvasDown, onWheel: this.onWheel,
+      canvasStyle: 'position:absolute;inset:0;overflow:hidden;cursor:' + (s.panning ? 'grabbing' : s.connectFrom ? 'crosshair' : 'default') + ';background-color:var(--bg);background-image:radial-gradient(var(--grid) 1px,transparent 1px);background-size:' + (22 * s.zoom) + 'px ' + (22 * s.zoom) + 'px;background-position:' + s.pan.x + 'px ' + s.pan.y + 'px;',
+      worldStyle: 'position:absolute;left:0;top:0;transform-origin:0 0;transform:translate(' + s.pan.x + 'px,' + s.pan.y + 'px) scale(' + s.zoom + ');',
+      edges: edgeList, edgeLabels: labelList, mapNodes: mapNodes, ghostCtas: ghostCtas,
+      selectBox: !!b, selectBoxStyle: b ? 'position:absolute;left:' + (b.x * s.zoom + s.pan.x) + 'px;top:' + (b.y * s.zoom + s.pan.y) + 'px;width:' + (b.w * s.zoom) + 'px;height:' + (b.h * s.zoom) + 'px;border:1px solid var(--brand);background:rgba(215,39,28,0.05);pointer-events:none;' : 'display:none;',
+      zoomLabel: Math.round(s.zoom * 100) + '%',
+      onZoomIn: this.onZoomIn, onZoomOut: this.onZoomOut, onFit: this.onFit, onOrganize: this.onOrganize,
+      onFocusSelected: this.onFocusSelected, isolateLabel: s.isolate ? 'Show all' : 'Only related',
+      onUndo: this.onUndo, onRedo: this.onRedo,
+      undoStyle: 'padding:7px 12px;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:' + (s.history.length ? 'var(--text-2)' : 'var(--text-3)') + ';opacity:' + (s.history.length ? 1 : 0.5) + ';',
+      redoStyle: 'padding:7px 12px;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:' + (s.future.length ? 'var(--text-2)' : 'var(--text-3)') + ';opacity:' + (s.future.length ? 1 : 0.5) + ';',
+      hintLine: s.multi.length > 1 ? s.multi.length + ' thoughts selected' : 'Selected: ' + cur.type.charAt(0) + cur.type.slice(1).toLowerCase(),
+      connectMode: !!s.connectFrom, onCancelConnect: this.onCancelConnect,
+
+      tabs: [['coach', 'Coach'], ['search', 'Search'], ['sources', 'Sources']].map(t => ({
+        label: t[1], onClick: () => this.setTab(t[0]),
+        style: 'padding:0 0 10px 0;font-size:12.5px;border-bottom:1px solid ' + (s.tab === t[0] ? 'var(--brand)' : 'transparent') + ';color:' + (s.tab === t[0] ? 'var(--text)' : 'var(--text-3)') + ';margin-bottom:-1px;'
+      })),
+      tabCoach: s.tab === 'coach', tabSearch: s.tab === 'search', tabSources: s.tab === 'sources',
+      nextMove: c.next, recommended: c.rec, onExplore: this.onExplore,
+      thread: thread,
+      quick: [
+        { label: 'Give me a hint', onClick: this.onInlineHint },
+        { label: 'Challenge my thinking', onClick: this.onChallenge },
+        { label: 'What is unclear here?', onClick: () => this.say('Two terms in this thought could each mean more than one thing. Which one would you define first?', { save: true }) }
+      ],
+      ask: s.ask, onAsk: this.onAsk, onAskKey: this.onAskKey, onSend: this.onSend,
+
+      query: s.query, onQuery: this.onQuery,
+      filters: ['Academic', 'Year', 'Method', 'Discipline'].map(f => ({
+        label: f, onClick: () => this.toggleFilter(f),
+        style: 'font-size:11.5px;padding:5px 10px;border-radius:7px;border:1px solid ' + (s.filters[f] ? 'var(--text-3)' : 'var(--border)') + ';color:' + (s.filters[f] ? 'var(--text)' : 'var(--text-2)') + ';'
+      })),
+      resultCount: results.length + (results.length === 1 ? ' RESULT' : ' RESULTS'), results: results.map(srcCard),
+      saved: PAPERS.filter(p => s.savedIds.indexOf(p.id) >= 0).map(srcCard),
+      savedCount: s.savedIds.length + ' SOURCE' + (s.savedIds.length === 1 ? '' : 'S') + ' IN THIS PROJECT',
+      noSaved: s.savedIds.length === 0,
+
+      dragging: !!(s.srcDrag && s.srcDrag.active),
+      dragGhostStyle: s.srcDrag ? 'position:fixed;left:' + (s.srcDrag.x + 12) + 'px;top:' + (s.srcDrag.y + 12) + 'px;width:230px;padding:11px 13px;background:var(--surface);border:1px solid var(--ext);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.14);pointer-events:none;z-index:90;' : 'display:none;',
+      dragCite: s.srcDrag ? s.srcDrag.paper.cite : '', dragTitle: s.srcDrag ? s.srcDrag.paper.title : '',
+
+      branchOpen: !!s.branch,
+      branchFromType: s.branch ? (this.node(s.branch.from) || {}).type : '',
+      branchFromText: s.branch ? ((this.node(s.branch.from) || {}).text || '').slice(0, 64) : '',
+      branchOptions: BRANCH_SUGGEST.map(o => ({ type: o.type, label: o.label, onClick: () => this.pickBranch(o) })),
+      branchCustom: s.branchCustom, onBranchCustom: this.onBranchCustom,
+      branchType: s.branchType, onBranchType: this.onBranchType, typeOptions: TYPES,
+      onBranchCreate: this.onBranchCreate, onCloseBranch: this.onCloseBranch,
+      branchDisabled: !(s.branchCustom || '').trim(),
+      branchCreateStyle: 'font-size:12.5px;padding:7px 14px;border-radius:8px;border:1px solid ' + ((s.branchCustom || '').trim() ? 'var(--brand)' : 'var(--border)') + ';color:' + ((s.branchCustom || '').trim() ? 'var(--brand)' : 'var(--text-3)') + ';',
+
+      relOpen: !!pop,
+      relTitle: pop && pop.mode === 'new' ? 'How are these related?' : 'Relationship label',
+      relStyle: pop ? 'position:fixed;left:' + Math.min((pop.x || window.innerWidth / 2) - 90, window.innerWidth - 220) + 'px;top:' + Math.min((pop.y || 200) + 8, window.innerHeight - 330) + 'px;width:206px;background:var(--surface);border:1px solid var(--border-2);border-radius:10px;padding:6px;box-shadow:0 8px 28px rgba(0,0,0,0.12);' : 'display:none;',
+      relOptions: RELS.map(r => ({ label: r, onClick: () => this.applyRel(r), style: 'display:block;width:100%;text-align:left;padding:5px 9px;border-radius:6px;font-size:12px;color:var(--text);' }))
+        .concat(pop && pop.mode === 'edit' ? [
+          { label: 'Remove label', onClick: this.removeRelLabel, style: 'display:block;width:100%;text-align:left;padding:5px 9px;border-radius:6px;font-size:12px;color:var(--text-2);' },
+          { label: 'Delete connection', onClick: this.deleteEdge, style: 'display:block;width:100%;text-align:left;padding:5px 9px;border-radius:6px;font-size:12px;color:var(--danger);' }
+        ] : []),
+      relCustom: s.relCustom, onRelCustom: this.onRelCustom, onRelKey: this.onRelKey, onRelCustomSave: this.onRelCustomSave, onCloseRel: this.onCloseRel,
+
+      interpretOpen: !!it,
+      interpretCite: it ? it.paper.cite : '', interpretTitle: it ? it.paper.title : '',
+      interpretFinding: it ? it.paper.finding : '',
+      interpretAskRel: !!(it && !it.rel), interpretAskText: !!(it && it.rel),
+      interpretTargetText: it && this.node(it.targetId) ? (this.node(it.targetId).text || '').slice(0, 52) : '',
+      interpretRels: ['Supports', 'Challenges', 'Background', 'Not sure'].map(r => ({
+        label: r, onClick: () => this.pickInterpretRel(r.toLowerCase()), style: relStyleFor(false)
+      })),
+      interpretText: it ? it.text : '', onInterpretText: this.onInterpretText,
+      interpretDisabled: !(it && (it.text || '').trim()),
+      interpretBtnStyle: 'font-size:12.5px;padding:7px 14px;border-radius:8px;border:1px solid ' + (it && (it.text || '').trim() ? 'var(--brand)' : 'var(--border)') + ';color:' + (it && (it.text || '').trim() ? 'var(--brand)' : 'var(--text-3)') + ';',
+      onCreateEvidence: this.onCreateEvidence, onKeepSource: this.onKeepSource, onCloseInterpret: this.onCloseInterpret,
+
+      evolvedOpen: s.evolved, onCloseEvolved: this.onCloseEvolved,
+      versions: VERSIONS.map((v, i) => ({
+        label: v.label, when: v.when, text: v.text, change: v.change, hasLine: i > 0,
+        dotStyle: 'width:9px;height:9px;border-radius:50%;display:block;margin-top:5px;flex:0 0 9px;background:' + (i === VERSIONS.length - 1 ? 'var(--brand)' : 'var(--surface)') + ';border:1px solid ' + (i === VERSIONS.length - 1 ? 'var(--brand)' : 'var(--border-2)') + ';',
+        textStyle: 'font-size:' + (i === VERSIONS.length - 1 ? '15.5px' : '14px') + ';line-height:1.55;color:var(--text' + (i === VERSIONS.length - 1 ? ')' : '-2)') + ';text-wrap:pretty;'
+      })),
+
+      menuOpen: !!s.menu, menuItems: menuItems, onCloseMenu: this.onCloseMenu,
+      menuStyle: s.menu ? 'position:fixed;left:' + s.menu.x + 'px;top:' + s.menu.y + 'px;width:212px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:5px;box-shadow:0 6px 24px rgba(0,0,0,0.10);animation:fadeIn 0.12s ease both;' : 'display:none;'
+    };
+  }
+}
+
+</script>
+</body>
+</html>

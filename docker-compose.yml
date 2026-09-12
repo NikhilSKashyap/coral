@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: noesis-db
+    environment:
+      POSTGRES_USER: noesis
+      POSTGRES_PASSWORD: noesis
+      POSTGRES_DB: noesis
+    ports:
+      - "5433:5432"
+    volumes:
+      - noesis-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U noesis -d noesis"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  noesis-pgdata:

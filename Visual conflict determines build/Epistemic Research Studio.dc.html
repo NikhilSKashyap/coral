@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap" />
+<style>
+:root,[data-theme="light"]{--bg:#F7F7F5;--surface:#FFFFFF;--surface-2:#FBFBFA;--text:#161616;--text-2:#717171;--text-3:#A5A5A1;--border:#E5E5E2;--border-2:#D6D6D2;--brand:#D7271C;--brand-soft:#FCF1F0;--danger:#B4231A;--ext:#2C6552;--ext-soft:#EEF4F1;}
+[data-theme="dark"]{--bg:#0D0D0C;--surface:#151514;--surface-2:#1B1B1A;--text:#F1F1EF;--text-2:#8E8E8A;--text-3:#5C5C58;--border:#262624;--border-2:#33332F;--brand:#E8443A;--brand-soft:#241412;--danger:#E8574C;--ext:#6FA891;--ext-soft:#17211D;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+a{color:var(--brand);text-decoration:none;}
+a:hover{color:var(--text);}
+button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer;}
+textarea,input{font:inherit;color:inherit;}
+textarea{resize:none;}
+::selection{background:rgba(215,39,28,0.14);}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:6px;border:3px solid transparent;background-clip:content-box;}
+::-webkit-scrollbar-track{background:transparent;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes growLine{from{opacity:0;transform:scaleY(0);}to{opacity:1;transform:none;}}
+@keyframes pulseOnce{0%{box-shadow:0 0 0 0 rgba(215,39,28,0.32);}70%{box-shadow:0 0 0 8px rgba(215,39,28,0);}100%{box-shadow:0 0 0 0 rgba(215,39,28,0);}}
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" style="height:100vh;display:flex;min-width:1208px;background:var(--bg);color:var(--text);overflow-x:auto;overflow-y:hidden;font-size:14px;">
+
+  <aside style="width:248px;flex:0 0 248px;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface-2);">
+    <div style="padding:20px 18px 14px 18px;display:flex;align-items:center;gap:9px;">
+      <span style="width:9px;height:9px;border-radius:50%;background:var(--brand);display:block;"></span>
+      <span style="font-size:13px;font-weight:500;letter-spacing:-0.01em;">Epistemic Research Studio</span>
+    </div>
+
+    <div style="padding:0 10px;display:flex;flex-direction:column;gap:1px;">
+      <button onClick="{{ onNew }}" style="display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;text-align:left;color:var(--text);" style-hover="background:var(--surface);">
+        <span style="width:15px;text-align:center;color:var(--brand);font-size:14px;line-height:1;">+</span>
+        <span style="font-size:13px;">New Question</span>
+      </button>
+      <button onClick="{{ onLibrary }}" style="display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;text-align:left;color:var(--text-2);" style-hover="background:var(--surface);color:var(--text);">
+        <span style="width:15px;text-align:center;font-size:12px;line-height:1;">▤</span>
+        <span style="font-size:13px;">Library</span>
+      </button>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin:14px 18px;"></div>
+
+    <div style="flex:1;overflow-y:auto;padding:0 10px 8px 10px;">
+      <div style="padding:6px 8px 4px 8px;font-size:10px;letter-spacing:0.09em;color:var(--text-3);font-weight:500;">PINNED</div>
+      <sc-for list="{{ pinned }}" as="row" hint-placeholder-count="1">
+        <div style="display:flex;align-items:center;border-radius:8px;padding-right:4px;" style-hover="background:var(--surface);">
+          <button onClick="{{ row.onOpen }}" onContextMenu="{{ row.onMenu }}" style="{{ row.style }}">{{ row.title }}</button>
+          <button onClick="{{ row.onMenu }}" style="padding:2px 4px;color:var(--text-3);font-size:13px;line-height:1;" style-hover="color:var(--text);">⋯</button>
+        </div>
+      </sc-for>
+
+      <div style="padding:14px 8px 4px 8px;font-size:10px;letter-spacing:0.09em;color:var(--text-3);font-weight:500;">PROJECTS</div>
+      <sc-for list="{{ projects }}" as="grp" hint-placeholder-count="2">
+        <div style="margin-bottom:2px;">
+          <button onClick="{{ grp.onToggle }}" style="display:flex;align-items:center;gap:6px;width:100%;padding:5px 8px;border-radius:8px;color:var(--text-2);" style-hover="background:var(--surface);color:var(--text);">
+            <span style="{{ grp.caretStyle }}">›</span>
+            <span style="font-size:12.5px;">{{ grp.name }}</span>
+          </button>
+          <sc-if value="{{ grp.open }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:1px;padding-left:10px;">
+              <sc-for list="{{ grp.items }}" as="row" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;border-radius:8px;padding-right:4px;" style-hover="background:var(--surface);">
+                  <button onClick="{{ row.onOpen }}" onContextMenu="{{ row.onMenu }}" style="{{ row.style }}">{{ row.title }}</button>
+                  <button onClick="{{ row.onMenu }}" style="padding:2px 4px;color:var(--text-3);font-size:13px;line-height:1;" style-hover="color:var(--text);">⋯</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+
+      <div style="padding:14px 8px 4px 8px;font-size:10px;letter-spacing:0.09em;color:var(--text-3);font-weight:500;">RESEARCH HISTORY</div>
+      <sc-for list="{{ history }}" as="grp" hint-placeholder-count="3">
+        <div style="margin-bottom:6px;">
+          <div style="padding:4px 8px;font-size:10px;letter-spacing:0.07em;color:var(--text-3);">{{ grp.label }}</div>
+          <sc-for list="{{ grp.items }}" as="row" hint-placeholder-count="1">
+            <div style="display:flex;align-items:center;border-radius:8px;padding-right:4px;" style-hover="background:var(--surface);">
+              <button onClick="{{ row.onOpen }}" onContextMenu="{{ row.onMenu }}" style="{{ row.style }}">{{ row.title }}</button>
+              <button onClick="{{ row.onMenu }}" style="padding:2px 4px;color:var(--text-3);font-size:13px;line-height:1;" style-hover="color:var(--text);">⋯</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding:10px;">
+      <div style="display:flex;gap:2px;padding:2px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;">
+        <button onClick="{{ onStudent }}" style="{{ studentTabStyle }}">Student</button>
+        <button onClick="{{ onInstructor }}" style="{{ instructorTabStyle }}">Instructor</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;">
+        <span style="width:24px;height:24px;border-radius:50%;background:var(--border);color:var(--text-2);font-size:10px;display:flex;align-items:center;justify-content:center;flex:0 0 24px;">MR</span>
+        <span style="flex:1;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Maren Reyes</span>
+        <button onClick="{{ onTheme }}" title="Toggle theme" style="padding:3px 5px;border-radius:6px;color:var(--text-3);font-size:12px;line-height:1;" style-hover="color:var(--text);background:var(--surface);">{{ themeIcon }}</button>
+        <button onClick="{{ onSettings }}" title="Settings" style="padding:3px 5px;border-radius:6px;color:var(--text-3);font-size:12px;line-height:1;" style-hover="color:var(--text);background:var(--surface);">⚙</button>
+      </div>
+    </div>
+  </aside>
+
+  <main style="flex:1;min-width:600px;height:100%;overflow-y:auto;position:relative;">
+
+    <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ true }}">
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:64px 48px;">
+        <div style="width:100%;max-width:620px;animation:fadeUp 0.4s ease both;">
+          <h1 style="font-size:34px;font-weight:400;letter-spacing:-0.025em;margin:0 0 12px 0;line-height:1.2;">What have you noticed?</h1>
+          <p style="margin:0 0 28px 0;color:var(--text-2);font-size:15px;line-height:1.6;max-width:520px;text-wrap:pretty;">Start with something that feels surprising, unresolved, contradictory, or difficult to explain.</p>
+          <textarea value="{{ seed }}" onChange="{{ onSeed }}" placeholder="It can be incomplete. Start with what you actually think." style="width:100%;height:150px;padding:18px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;font-size:15px;line-height:1.6;outline:none;" style-focus="border-color:var(--border-2);"></textarea>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:18px;">
+            <button onClick="{{ onExample }}" style="text-align:left;font-size:13px;color:var(--text-3);line-height:1.5;max-width:400px;" style-hover="color:var(--text-2);">For example: “Students seem to finish work faster with AI, but I'm not sure they're learning more.”</button>
+            <button onClick="{{ onStart }}" style="{{ startBtnStyle }}">Start thinking</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isLibrary }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:48px 56px 80px 56px;max-width:900px;animation:fadeIn 0.3s ease both;">
+        <h1 style="font-size:26px;font-weight:400;letter-spacing:-0.02em;margin:0 0 4px 0;">Library</h1>
+        <p style="margin:0 0 32px 0;color:var(--text-2);font-size:13.5px;">Questions you have worked through, with the reasoning that produced them.</p>
+        <div style="border-top:1px solid var(--border);">
+          <sc-for list="{{ libraryRows }}" as="row" hint-placeholder-count="4">
+            <button onClick="{{ row.onOpen }}" style="display:block;width:100%;text-align:left;padding:18px 4px;border-bottom:1px solid var(--border);" style-hover="background:var(--surface);">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:24px;">
+                <span style="font-size:15px;">{{ row.title }}</span>
+                <span style="font-size:11px;color:var(--text-3);letter-spacing:0.04em;white-space:nowrap;">{{ row.meta }}</span>
+              </div>
+              <div style="margin-top:6px;font-size:13px;color:var(--text-2);line-height:1.55;max-width:640px;">{{ row.question }}</div>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isTeacher }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:44px 56px 100px 56px;max-width:1000px;animation:fadeIn 0.3s ease both;">
+        <div style="font-size:11px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:8px;">INSTRUCTOR VIEW · MAREN REYES</div>
+        <h1 style="font-size:27px;font-weight:400;letter-spacing:-0.022em;margin:0 0 6px 0;">Thinking Evolution</h1>
+        <p style="margin:0 0 40px 0;color:var(--text-2);font-size:13.5px;max-width:620px;line-height:1.6;">How the question was arrived at, in the order it happened. Expand any step to see what the student wrote and where the Coach intervened.</p>
+
+        <div style="display:flex;flex-direction:column;">
+          <sc-for list="{{ teacherNodes }}" as="node" hint-placeholder-count="7">
+            <div>
+              <sc-if value="{{ node.hasLine }}" hint-placeholder-val="{{ true }}">
+                <div style="width:1px;height:26px;background:var(--border-2);margin-left:5px;"></div>
+              </sc-if>
+              <div style="display:flex;gap:16px;align-items:flex-start;">
+                <span style="{{ node.dotStyle }}"></span>
+                <div style="flex:1;padding-bottom:2px;">
+                  <button onClick="{{ node.onToggle }}" style="display:flex;align-items:baseline;gap:12px;width:100%;text-align:left;">
+                    <span style="font-size:14.5px;">{{ node.label }}</span>
+                    <span style="flex:1;height:1px;background:var(--border);"></span>
+                    <span style="font-size:10.5px;letter-spacing:0.06em;color:var(--text-3);">{{ node.by }}</span>
+                    <span style="{{ node.caretStyle }}">›</span>
+                  </button>
+                  <sc-if value="{{ node.open }}" hint-placeholder-val="{{ true }}">
+                    <div style="margin-top:14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden;animation:fadeUp 0.22s ease both;">
+                      <sc-for list="{{ node.fields }}" as="f" hint-placeholder-count="3">
+                        <div style="display:grid;grid-template-columns:150px 1fr;gap:20px;padding:14px 18px;border-bottom:1px solid var(--border);">
+                          <span style="font-size:10.5px;letter-spacing:0.06em;color:{{ f.color }};padding-top:2px;">{{ f.k }}</span>
+                          <span style="font-size:13.5px;line-height:1.6;color:var(--text);">{{ f.v }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="height:1px;background:var(--border);margin:52px 0 0 0;"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:56px;padding-top:36px;">
+          <div>
+            <h2 style="font-size:16px;font-weight:500;margin:0 0 4px 0;letter-spacing:-0.01em;">Epistemic Ownership</h2>
+            <p style="margin:0 0 20px 0;font-size:12.5px;color:var(--text-2);line-height:1.55;">Who made each move.</p>
+            <sc-for list="{{ ownership }}" as="row" hint-placeholder-count="8">
+              <div style="display:flex;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);">
+                <span style="flex:1;font-size:13.5px;">{{ row.k }}</span>
+                <span style="{{ row.style }}">{{ row.v }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div>
+            <h2 style="font-size:16px;font-weight:500;margin:0 0 4px 0;letter-spacing:-0.01em;">Capability</h2>
+            <p style="margin:0 0 20px 0;font-size:12.5px;color:var(--text-2);line-height:1.55;">Observed in this session only.</p>
+            <sc-for list="{{ capability }}" as="row" hint-placeholder-count="5">
+              <div style="display:flex;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);">
+                <span style="flex:1;font-size:13.5px;">{{ row.k }}</span>
+                <span style="{{ row.style }}">{{ row.v }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isCanvas }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:36px 56px 140px 56px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:32px;">
+          <div style="min-width:0;">
+            <div style="font-size:12px;color:var(--text-3);margin-bottom:10px;">
+              <span>{{ breadcrumb }}</span>
+              <span style="padding:0 6px;color:var(--border-2);">/</span>
+              <span style="color:var(--text-2);">{{ titleShort }}</span>
+            </div>
+            <input value="{{ title }}" onChange="{{ onTitle }}" readOnly="{{ readOnly }}" style="width:640px;max-width:100%;font-size:27px;font-weight:400;letter-spacing:-0.022em;background:transparent;border:1px solid transparent;border-radius:8px;padding:2px 8px;margin-left:-8px;outline:none;" style-hover="border-color:var(--border);" style-focus="border-color:var(--border-2);background:var(--surface);" />
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;padding-top:26px;flex:0 0 auto;">
+            <sc-if value="{{ canReflect }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ onReflect }}" style="padding:6px 11px;border-radius:8px;font-size:12.5px;color:var(--text-2);" style-hover="background:var(--surface);color:var(--text);">How your question evolved</button>
+            </sc-if>
+            <button style="padding:6px 11px;border-radius:8px;font-size:12.5px;color:var(--text-2);" style-hover="background:var(--surface);color:var(--text);">Share</button>
+            <button onClick="{{ onDocMenu }}" style="padding:6px 9px;border-radius:8px;font-size:13px;color:var(--text-2);line-height:1;" style-hover="background:var(--surface);color:var(--text);">⋯</button>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:0;margin-top:26px;padding-bottom:2px;">
+          <sc-for list="{{ stageChips }}" as="chip" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;">
+              <span style="{{ chip.dotStyle }}"></span>
+              <span style="{{ chip.labelStyle }}">{{ chip.label }}</span>
+              <sc-if value="{{ chip.hasArrow }}" hint-placeholder-val="{{ true }}">
+                <span style="width:26px;height:1px;background:var(--border);margin:0 10px;display:block;"></span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="height:1px;background:var(--border);margin:22px 0 40px 0;"></div>
+
+        <div style="display:flex;flex-direction:column;">
+          <sc-for list="{{ spine }}" as="row" hint-placeholder-count="2">
+            <div>
+              <sc-if value="{{ row.hasRel }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;align-items:center;height:46px;padding-left:24px;animation:fadeIn 0.4s ease both;">
+                  <span style="width:1px;height:46px;background:var(--border-2);display:block;transform-origin:top;animation:growLine 0.35s ease both;"></span>
+                  <span style="font-size:10.5px;letter-spacing:0.07em;color:var(--text-3);padding-left:12px;">{{ row.rel }}</span>
+                </div>
+              </sc-if>
+              <div style="display:flex;gap:44px;align-items:flex-start;">
+                <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="1">
+                  <div style="{{ cell.wrapStyle }}">
+                    <sc-if value="{{ cell.isBranch }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;align-items:center;gap:10px;height:24px;margin-top:-24px;margin-left:-44px;padding-right:0;">
+                        <span style="width:34px;height:1px;background:var(--border-2);display:block;"></span>
+                        <span style="font-size:10.5px;letter-spacing:0.07em;color:var(--text-3);">branches to</span>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ cell.isEmptySlot }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ cell.onAdd }}" style="{{ cell.slotStyle }}">
+                        <span style="font-size:10.5px;letter-spacing:0.1em;color:var(--brand);display:block;margin-bottom:9px;">{{ cell.stage }}</span>
+                        <span style="font-size:14px;color:var(--text-2);line-height:1.55;display:block;">{{ cell.slotPrompt }}</span>
+                      </button>
+                    </sc-if>
+
+                    <sc-if value="{{ cell.isCard }}" hint-placeholder-val="{{ true }}">
+                      <div onMouseEnter="{{ cell.onEnter }}" onMouseLeave="{{ cell.onLeave }}" style="{{ cell.cardStyle }}">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px;">
+                          <span style="{{ cell.labelStyle }}">{{ cell.stage }}</span>
+                          <sc-if value="{{ cell.isEmerging }}" hint-placeholder-val="{{ true }}">
+                            <span style="font-size:10px;letter-spacing:0.07em;color:var(--text-3);border:1px solid var(--border);border-radius:5px;padding:2px 6px;">EMERGING QUESTION</span>
+                          </sc-if>
+                          <span style="flex:1;"></span>
+                          <sc-if value="{{ cell.needsReview }}" hint-placeholder-val="{{ true }}">
+                            <button onClick="{{ cell.onReview }}" style="{{ cell.reviewPillStyle }}">Needs review</button>
+                          </sc-if>
+                        </div>
+
+                        <div style="{{ cell.textStyle }}">{{ cell.text }}</div>
+
+                        <sc-if value="{{ cell.hasConnection }}" hint-placeholder-val="{{ true }}">
+                          <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--border);font-size:12px;color:var(--text-3);line-height:1.5;">
+                            <span style="letter-spacing:0.06em;font-size:10.5px;">CONNECTS TO</span>
+                            <span style="display:block;margin-top:4px;color:var(--text-2);">{{ cell.connection }}</span>
+                          </div>
+                        </sc-if>
+
+                        <div style="display:flex;align-items:center;gap:14px;margin-top:16px;">
+                          <span style="font-size:11px;color:var(--text-3);letter-spacing:0.01em;">{{ cell.owner }}</span>
+                          <span style="flex:1;"></span>
+                          <div style="{{ cell.actionsStyle }}">
+                            <button onClick="{{ cell.onEdit }}" style="font-size:12px;color:var(--text-2);padding:2px 0;" style-hover="color:var(--text);">Edit</button>
+                            <button onClick="{{ cell.onConnect }}" style="font-size:12px;color:var(--text-2);padding:2px 0;" style-hover="color:var(--text);">Connect</button>
+                            <sc-if value="{{ cell.canBranch }}" hint-placeholder-val="{{ true }}">
+                              <button onClick="{{ cell.onBranch }}" style="font-size:12px;color:var(--text-2);padding:2px 0;" style-hover="color:var(--text);">Branch</button>
+                            </sc-if>
+                            <button onClick="{{ cell.onMore }}" style="font-size:13px;color:var(--text-2);line-height:1;padding:2px 0;" style-hover="color:var(--text);">⋯</button>
+                          </div>
+                        </div>
+
+                        <sc-if value="{{ cell.reviewOpen }}" hint-placeholder-val="{{ true }}">
+                          <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);animation:fadeUp 0.22s ease both;">
+                            <div style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:12px;">{{ cell.reviewQuestion }}</div>
+                            <textarea value="{{ cell.reviewValue }}" onChange="{{ cell.onReviewChange }}" placeholder="Say what still holds, or what no longer does." style="width:100%;height:76px;padding:12px 13px;background:var(--bg);border:1px solid var(--border);border-radius:9px;font-size:13.5px;line-height:1.55;outline:none;" style-focus="border-color:var(--border-2);"></textarea>
+                            <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+                              <button onClick="{{ cell.onHolds }}" disabled="{{ cell.reviewDisabled }}" style="{{ cell.holdsStyle }}">It still holds</button>
+                              <button onClick="{{ cell.onReviseNow }}" style="font-size:12.5px;color:var(--text-2);padding:6px 10px;border-radius:8px;" style-hover="color:var(--text);background:var(--bg);">Revise this thought</button>
+                              <span style="flex:1;"></span>
+                              <span style="{{ cell.reviewHintStyle }}">Your answer clears the flag — the system will not clear it for you.</span>
+                            </div>
+                          </div>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ cell.isEditor }}" hint-placeholder-val="{{ true }}">
+                      <div style="border:1px solid var(--border-2);background:var(--surface);border-radius:12px;padding:22px 24px;box-shadow:0 1px 2px rgba(0,0,0,0.03);animation:fadeUp 0.24s ease both;">
+                        <div style="font-size:10.5px;letter-spacing:0.1em;color:var(--brand);margin-bottom:16px;">{{ cell.stage }}</div>
+
+                        <sc-if value="{{ cell.hasCurrent }}" hint-placeholder-val="{{ true }}">
+                          <div style="margin-bottom:18px;">
+                            <div style="font-size:10.5px;letter-spacing:0.06em;color:var(--text-3);margin-bottom:6px;">CURRENT THOUGHT</div>
+                            <div style="font-size:13.5px;color:var(--text-2);line-height:1.6;font-style:italic;">{{ cell.current }}</div>
+                          </div>
+                        </sc-if>
+
+                        <div style="border-left:1px solid var(--border-2);padding-left:14px;margin-bottom:18px;">
+                          <div style="font-size:13px;color:var(--text-2);line-height:1.6;text-wrap:pretty;">{{ cell.guidance }}</div>
+                        </div>
+
+                        <div style="font-size:14.5px;margin-bottom:12px;line-height:1.5;">{{ cell.prompt }}</div>
+
+                        <textarea value="{{ cell.draft }}" onChange="{{ cell.onDraft }}" placeholder="In your own words." style="width:100%;height:110px;padding:14px 15px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-size:14.5px;line-height:1.6;outline:none;" style-focus="border-color:var(--border-2);"></textarea>
+
+                        <sc-if value="{{ cell.showTry }}" hint-placeholder-val="{{ true }}">
+                          <div style="margin-top:14px;font-size:12.5px;color:var(--text-3);line-height:1.6;">
+                            <span style="letter-spacing:0.06em;font-size:10.5px;">TRY</span>
+                            <span style="display:block;margin-top:4px;color:var(--text-2);">{{ cell.tryLine }}</span>
+                          </div>
+                        </sc-if>
+
+                        <div style="display:flex;align-items:center;gap:10px;margin-top:20px;">
+                          <button onClick="{{ cell.onSave }}" disabled="{{ cell.saveDisabled }}" style="{{ cell.saveStyle }}">{{ cell.saveLabel }}</button>
+                          <button onClick="{{ cell.onCancel }}" style="font-size:12.5px;color:var(--text-2);padding:7px 12px;border-radius:8px;" style-hover="color:var(--text);background:var(--bg);">Cancel</button>
+                          <span style="flex:1;"></span>
+                          <sc-if value="{{ cell.showTryToggle }}" hint-placeholder-val="{{ true }}">
+                            <button onClick="{{ cell.onTry }}" style="font-size:12.5px;color:var(--text-3);" style-hover="color:var(--text-2);">Show a sentence frame</button>
+                          </sc-if>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ showRefine }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:52px;max-width:600px;border:1px solid var(--border);border-radius:12px;background:var(--surface);animation:fadeUp 0.3s ease both;">
+            <div style="display:flex;align-items:center;gap:12px;padding:18px 22px 14px 22px;">
+              <span style="font-size:15px;font-weight:500;letter-spacing:-0.01em;">Make it researchable</span>
+              <span style="flex:1;"></span>
+              <button onClick="{{ onUnpack }}" style="font-size:12px;color:var(--brand);padding:4px 9px;border:1px solid var(--border);border-radius:7px;" style-hover="background:var(--brand-soft);">Unpack uncertainty</button>
+            </div>
+            <div style="padding:0 22px 6px 22px;font-size:12.5px;color:var(--text-2);line-height:1.6;">Reflective prompts, not fields you have to fill. Answer the ones that change your question.</div>
+            <div style="padding:14px 22px 20px 22px;">
+              <sc-for list="{{ checks }}" as="c" hint-placeholder-count="5">
+                <div style="border-top:1px solid var(--border);">
+                  <button onClick="{{ c.onToggle }}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 0;">
+                    <span style="{{ c.dotStyle }}"></span>
+                    <span style="flex:1;font-size:13.5px;line-height:1.5;">{{ c.q }}</span>
+                    <span style="{{ c.caretStyle }}">›</span>
+                  </button>
+                  <sc-if value="{{ c.open }}" hint-placeholder-val="{{ true }}">
+                    <div style="padding:0 0 16px 24px;animation:fadeUp 0.2s ease both;">
+                      <textarea value="{{ c.value }}" onChange="{{ c.onChange }}" placeholder="Think it through here." style="width:100%;height:70px;padding:11px 12px;background:var(--bg);border:1px solid var(--border);border-radius:9px;font-size:13px;line-height:1.55;outline:none;" style-focus="border-color:var(--border-2);"></textarea>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{ showCoach }}" hint-placeholder-val="{{ true }}">
+    <aside style="width:360px;flex:0 0 360px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface);">
+      <div style="padding:20px 22px 16px 22px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:9px;">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--brand);display:block;"></span>
+          <span style="font-size:13.5px;font-weight:500;letter-spacing:-0.005em;">Epistemic Coach</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-3);margin-top:6px;padding-left:16px;">{{ coachStatus }}</div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:22px;">
+        <div style="margin-bottom:8px;">
+          <div style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:7px;">CURRENT STATE</div>
+          <div style="font-size:14px;line-height:1.6;margin-bottom:20px;text-wrap:pretty;">{{ coachState }}</div>
+          <div style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:7px;">NEXT MOVE</div>
+          <div style="font-size:14px;line-height:1.6;color:var(--text-2);text-wrap:pretty;">{{ coachNext }}</div>
+        </div>
+
+        <sc-for list="{{ thread }}" as="m" hint-placeholder-count="0">
+          <div style="{{ m.wrapStyle }}">
+            <div style="{{ m.labelStyle }}">{{ m.label }}</div>
+
+            <sc-if value="{{ m.isText }}" hint-placeholder-val="{{ true }}">
+              <div style="{{ m.textStyle }}">{{ m.text }}</div>
+            </sc-if>
+
+            <sc-if value="{{ m.isPieces }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <div style="font-size:14px;line-height:1.65;margin-bottom:14px;text-wrap:pretty;">{{ m.text }}</div>
+                <sc-for list="{{ m.items }}" as="it" hint-placeholder-count="4">
+                  <div style="padding:9px 0;border-top:1px solid var(--border);">
+                    <div style="font-size:10px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:4px;">{{ it.k }}</div>
+                    <div style="font-size:13px;line-height:1.55;color:var(--text-2);">{{ it.v }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ m.isEval }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <sc-for list="{{ m.rows }}" as="r" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:baseline;gap:12px;padding:8px 0;border-top:1px solid var(--border);">
+                    <span style="flex:1;font-size:13px;">{{ r.k }}</span>
+                    <span style="{{ r.style }}">{{ r.v }}</span>
+                  </div>
+                </sc-for>
+                <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+                  <div style="font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:7px;">MOST IMPORTANT NEXT</div>
+                  <div style="font-size:13.5px;line-height:1.6;text-wrap:pretty;">{{ m.next }}</div>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ m.hasHintBtn }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ m.onHint }}" style="margin-top:13px;font-size:12.5px;color:var(--brand);border:1px solid var(--border);border-radius:7px;padding:5px 10px;" style-hover="background:var(--brand-soft);">{{ m.hintLabel }}</button>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding:14px 22px 18px 22px;">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+          <sc-for list="{{ quickActions }}" as="a" hint-placeholder-count="3">
+            <button onClick="{{ a.onClick }}" style="font-size:12px;color:var(--text-2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;" style-hover="border-color:var(--border-2);color:var(--text);background:var(--surface-2);">{{ a.label }}</button>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px;border:1px solid var(--border);border-radius:10px;padding:9px 11px;background:var(--bg);" style-focus-within="border-color:var(--border-2);">
+          <textarea value="{{ ask }}" onChange="{{ onAsk }}" onKeyDown="{{ onAskKey }}" placeholder="Ask Coach..." style="flex:1;height:22px;max-height:96px;background:transparent;border:none;outline:none;font-size:13.5px;line-height:1.5;"></textarea>
+          <button onClick="{{ onSend }}" style="font-size:12px;color:var(--brand);padding:1px 2px;" style-hover="color:var(--text);">Send</button>
+        </div>
+      </div>
+    </aside>
+  </sc-if>
+
+  <sc-if value="{{ menu }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onCloseMenu }}" onContextMenu="{{ onCloseMenu }}" style="position:fixed;inset:0;z-index:60;">
+      <div style="{{ menuStyle }}">
+        <sc-for list="{{ menuItems }}" as="mi" hint-placeholder-count="0">
+          <div>
+            <sc-if value="{{ mi.isDivider }}" hint-placeholder-val="{{ true }}">
+              <div style="height:1px;background:var(--border);margin:5px 0;"></div>
+            </sc-if>
+            <sc-if value="{{ mi.isItem }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ mi.onClick }}" style="{{ mi.style }}">{{ mi.label }}</button>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showIntro }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:rgba(10,10,10,0.28);z-index:70;display:flex;align-items:center;justify-content:center;padding:40px;animation:fadeIn 0.2s ease both;">
+      <div style="width:460px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 30px;animation:fadeUp 0.28s ease both;">
+        <div style="font-size:10.5px;letter-spacing:0.1em;color:var(--brand);margin-bottom:14px;">HOW THIS WORKS</div>
+        <h2 style="font-size:20px;font-weight:400;letter-spacing:-0.015em;margin:0 0 14px 0;line-height:1.35;">The Coach will not write your question.</h2>
+        <p style="margin:0 0 12px 0;font-size:13.5px;line-height:1.65;color:var(--text-2);text-wrap:pretty;">It reads where your reasoning currently stands and offers the smallest push it can — a reflection, then a question, then a structure, then a sentence frame. The move itself stays yours.</p>
+        <p style="margin:0 0 24px 0;font-size:13.5px;line-height:1.65;color:var(--text-2);text-wrap:pretty;">Work down the spine: what you noticed, what you wonder, what is in tension, what is unknown, and only then the question.</p>
+        <button onClick="{{ onCloseIntro }}" style="font-size:13px;color:var(--brand);border:1px solid var(--brand);border-radius:8px;padding:8px 16px;" style-hover="background:var(--brand-soft);">Start with what I noticed</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ unpackOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:rgba(10,10,10,0.28);z-index:70;display:flex;align-items:center;justify-content:center;padding:48px;animation:fadeIn 0.2s ease both;">
+      <div style="width:660px;max-height:100%;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;animation:fadeUp 0.26s ease both;">
+        <div style="padding:26px 30px 18px 30px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <h2 style="font-size:19px;font-weight:400;letter-spacing:-0.015em;margin:0;">Unpack uncertainty</h2>
+            <span style="flex:1;"></span>
+            <button onClick="{{ onCloseUnpack }}" style="font-size:15px;color:var(--text-3);line-height:1;" style-hover="color:var(--text);">✕</button>
+          </div>
+          <p style="margin:12px 0 0 0;font-size:13px;color:var(--text-2);line-height:1.6;max-width:520px;text-wrap:pretty;">Your question uses several terms that could each mean more than one thing. Here is a possible decomposition — the meanings are yours to settle.</p>
+        </div>
+        <div style="padding:8px 30px 26px 30px;">
+          <sc-for list="{{ unpackGroups }}" as="g" hint-placeholder-count="4">
+            <div style="padding:20px 0;border-bottom:1px solid var(--border);">
+              <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+                <span style="font-size:14.5px;">{{ g.name }}</span>
+                <span style="font-size:10.5px;letter-spacing:0.06em;color:var(--ext);">AI PROPOSED</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="4">
+                  <div style="{{ it.rowStyle }}">
+                    <sc-if value="{{ it.renaming }}" hint-placeholder-val="{{ true }}">
+                      <input value="{{ it.value }}" onChange="{{ it.onChange }}" onKeyDown="{{ it.onKey }}" style="flex:1;background:var(--bg);border:1px solid var(--border-2);border-radius:7px;padding:5px 9px;font-size:13px;outline:none;" />
+                    </sc-if>
+                    <sc-if value="{{ it.plain }}" hint-placeholder-val="{{ true }}">
+                      <span style="{{ it.labelStyle }}">{{ it.label }}</span>
+                    </sc-if>
+                    <span style="{{ it.tagStyle }}">{{ it.tag }}</span>
+                    <div style="display:flex;gap:10px;flex:0 0 auto;">
+                      <button onClick="{{ it.onKeep }}" style="{{ it.keepStyle }}">Keep</button>
+                      <button onClick="{{ it.onRemove }}" style="{{ it.removeStyle }}">Remove</button>
+                      <button onClick="{{ it.onRename }}" style="font-size:11.5px;color:var(--text-3);" style-hover="color:var(--text);">Rename</button>
+                      <button onClick="{{ it.onDefine }}" style="{{ it.defineStyle }}">Define</button>
+                    </div>
+                  </div>
+                  <sc-if value="{{ it.defining }}" hint-placeholder-val="{{ true }}">
+                    <div style="padding:4px 0 12px 12px;">
+                      <textarea value="{{ it.def }}" onChange="{{ it.onDef }}" placeholder="In this question, this term means…" style="width:100%;height:58px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:9px;font-size:12.5px;line-height:1.55;outline:none;" style-focus="border-color:var(--border-2);"></textarea>
+                    </div>
+                  </sc-if>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+          <div style="display:flex;align-items:center;gap:12px;padding-top:22px;">
+            <button onClick="{{ onCloseUnpack }}" style="font-size:13px;color:var(--brand);border:1px solid var(--brand);border-radius:8px;padding:8px 15px;" style-hover="background:var(--brand-soft);">Done — these are my terms</button>
+            <span style="font-size:12px;color:var(--text-3);">{{ unpackSummary }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ reflectOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:rgba(10,10,10,0.28);z-index:70;display:flex;align-items:center;justify-content:center;padding:48px;animation:fadeIn 0.2s ease both;">
+      <div style="width:560px;max-height:100%;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 32px 32px 32px;animation:fadeUp 0.26s ease both;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+          <h2 style="font-size:19px;font-weight:400;letter-spacing:-0.015em;margin:0;">How your question evolved</h2>
+          <span style="flex:1;"></span>
+          <button onClick="{{ onCloseReflect }}" style="font-size:15px;color:var(--text-3);line-height:1;" style-hover="color:var(--text);">✕</button>
+        </div>
+        <p style="margin:0 0 26px 0;font-size:12.5px;color:var(--text-2);line-height:1.6;">For you, not for anyone reviewing you.</p>
+        <sc-for list="{{ reflectSteps }}" as="s" hint-placeholder-count="5">
+          <div>
+            <sc-if value="{{ s.hasLine }}" hint-placeholder-val="{{ true }}">
+              <div style="width:1px;height:20px;background:var(--border-2);margin-left:3px;"></div>
+            </sc-if>
+            <div style="display:flex;gap:14px;align-items:flex-start;">
+              <span style="{{ s.dotStyle }}"></span>
+              <div style="flex:1;padding-bottom:1px;">
+                <div style="font-size:10.5px;letter-spacing:0.07em;color:var(--text-3);margin-bottom:5px;">{{ s.k }}</div>
+                <div style="font-size:13.5px;line-height:1.6;text-wrap:pretty;">{{ s.v }}</div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ connectOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onCloseConnect }}" style="position:fixed;inset:0;background:rgba(10,10,10,0.28);z-index:70;display:flex;align-items:center;justify-content:center;padding:48px;animation:fadeIn 0.2s ease both;">
+      <div style="width:480px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 26px;animation:fadeUp 0.24s ease both;">
+        <h2 style="font-size:16px;font-weight:500;letter-spacing:-0.01em;margin:0 0 6px 0;">Connect to a previous thought</h2>
+        <p style="margin:0 0 18px 0;font-size:12.5px;color:var(--text-2);line-height:1.6;">Only thoughts already on this spine.</p>
+        <div style="display:flex;flex-direction:column;">
+          <sc-for list="{{ connectOptions }}" as="o" hint-placeholder-count="3">
+            <button onClick="{{ o.onPick }}" style="text-align:left;padding:13px 12px;border-top:1px solid var(--border);border-radius:0;" style-hover="background:var(--bg);">
+              <span style="display:block;font-size:10.5px;letter-spacing:0.08em;color:var(--text-3);margin-bottom:5px;">{{ o.stage }}</span>
+              <span style="display:block;font-size:13px;line-height:1.55;color:var(--text-2);">{{ o.text }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+const STAGES = ['NOTICE', 'WONDER', 'TENSION', 'UNKNOWN', 'QUESTION'];
+const REL = { WONDER: 'raises', TENSION: 'reveals', UNKNOWN: 'leaves uncertain', QUESTION: 'leads to' };
+
+const META = {
+  NOTICE: {
+    guidance: 'A notice is something you actually observed or encountered. It is not yet an explanation of what you observed.',
+    prompt: 'What exactly did you observe?',
+    tryLine: 'I noticed that ___, which I did not expect because ___.',
+    slot: 'What have you noticed?',
+    state: "You're starting from an observation.",
+    next: 'Describe what you saw, before explaining it.',
+    after: 'You have named something you observed. Does what you observed necessarily mean something improved?',
+    hints: [
+      'You seem to be noticing that AI changes how quickly work gets finished.',
+      'What did you actually observe here, as opposed to what you inferred from it?',
+      'Separate the event from your explanation of it. Only the event belongs in a notice.',
+      'Try completing: I noticed that ___, which I did not expect because ___.'
+    ],
+    challenge: { assumption: 'You are treating speed as the salient feature of what you saw.', question: 'What else changed at the same time that you did not record?' }
+  },
+  WONDER: {
+    guidance: 'A wonder is an open question about your observation. It is not a hypothesis you already believe.',
+    prompt: 'What about this feels unresolved?',
+    tryLine: 'I wonder whether ___ actually means ___.',
+    slot: 'What feels unresolved about it?',
+    state: "You've identified a phenomenon.",
+    next: 'Try to articulate what about it feels unresolved.',
+    after: 'That reads as an open question rather than a conclusion. Which two things here are hard to hold together?',
+    hints: [
+      'You seem to be noticing that faster completion may not be the same thing as better learning.',
+      'What about this feels unresolved?',
+      'Consider whether the thing you observed necessarily implies what it appears to imply.',
+      'Try completing: I wonder whether ___ actually means ___.'
+    ],
+    challenge: { assumption: 'You are assuming the interesting question is about learning rather than about the task itself.', question: 'What would make the task, not the learner, the thing that changed?' }
+  },
+  TENSION: {
+    guidance: 'A strong tension contains two ideas that are both plausible but difficult to reconcile.',
+    prompt: 'What exactly is in tension here?',
+    tryLine: 'Although ___, ___.',
+    slot: 'What two things are hard to reconcile?',
+    state: "You've opened a genuine question.",
+    next: 'Name the two claims that are hard to hold together.',
+    after: 'What would you need to know to distinguish those two possibilities?',
+    hints: [
+      'You seem to be holding two things at once: a visible gain and a possible hidden cost.',
+      'Which two claims here are hard to hold together?',
+      'Consider whether performance and learning necessarily move together.',
+      'Try completing: Although ___, ___.'
+    ],
+    challenge: { assumption: 'You are currently assuming that AI-assisted performance may conceal weaker independent ability.', question: 'What alternative explanation could produce the same observation?' }
+  },
+  UNKNOWN: {
+    guidance: 'An unknown names what you would have to find out to tell the two sides of your tension apart. It is a gap, not a topic.',
+    prompt: 'What would you need to know to distinguish those possibilities?',
+    tryLine: 'It is not yet known whether ___ can ___ without ___.',
+    slot: 'What would you need to find out?',
+    state: 'You are holding a real tension.',
+    next: 'Say what you would have to find out to settle it.',
+    after: 'That is a gap evidence could close. Now the question — I will list what you have established, but the wording should be yours.',
+    hints: [
+      'Your tension sets up two possibilities that currently look the same from the outside.',
+      'What observation would tell those two possibilities apart?',
+      'An unknown is not a subject area. It is something a study could establish or fail to establish.',
+      'Try completing: It is not yet known whether ___ can ___ without ___.'
+    ],
+    challenge: { assumption: 'You are assuming the unknown is about ability rather than about willingness or effort.', question: 'How would you tell an inability apart from a choice not to?' }
+  },
+  QUESTION: {
+    guidance: 'A researchable question names who you are studying, what is uncertain, and under what conditions. Write it from the pieces you already have.',
+    prompt: 'Write your question in your own words.',
+    tryLine: 'For ___, how does ___ affect ___ during ___?',
+    slot: 'Write your question.',
+    state: 'You have the pieces of a question.',
+    next: 'Write it yourself — I will not assemble it for you.',
+    after: 'That is a first version, not a finished one. Some terms in it are still doing more than one job.',
+    hints: [
+      'You have an observation, a tension and an unknown. The question is the unknown, made specific.',
+      'Who exactly are you asking about, and during what activity?',
+      'A question that could be answered yes or no by anyone with an opinion is not yet researchable. What would evidence have to show?',
+      'Try completing: For ___, how does ___ affect ___ during ___?'
+    ],
+    challenge: { assumption: 'Your question assumes the effect runs in one direction.', question: 'What would it look like if the effect ran the other way?' }
+  }
+};
+
+const CHECKS = [
+  'Who or what are you studying?',
+  'What exactly is uncertain?',
+  'Why does this uncertainty matter?',
+  'What boundaries are necessary?',
+  'Could evidence realistically answer this question?'
+];
+
+const UNPACK = [
+  { name: 'AI assistance', items: ['answer generation', 'feedback', 'search', 'reasoning support'] },
+  { name: 'Learning', items: ['performance', 'recall', 'transfer', 'independent reasoning'] },
+  { name: 'Population', items: ['graduate students'] },
+  { name: 'Context', items: ['literature synthesis'] }
+];
+
+const SPINES = {
+  p1: { project: 'AI & Learning', title: 'AI and independent reasoning', s: ['Students complete assignments much faster when they use AI.', 'Are they actually learning more?', 'Performance increases, but independent learning may not.', 'Can students perform the same reasoning without AI?', "How does generative AI use during literature synthesis affect graduate students' ability to independently analyze conflicting sources?"] },
+  t1: { project: 'AI & Learning', title: 'AI dependency', s: ['Some students open an AI tool before they have read the prompt.', 'Has the tool replaced the first step of thinking?', 'Starting with AI saves effort, but the first framing move may be where the learning is.', 'Whether students can frame a task before consulting a tool.', 'How does consulting generative AI before task framing affect undergraduates\u2019 ability to define a problem independently?'] },
+  t2: { project: 'AI & Learning', title: 'AI feedback', s: ['Students revise more when feedback comes from AI than from peers.', 'Do they revise more deeply, or only more often?', 'Revision frequency rises, but the revisions may stay at the surface.', 'Whether AI feedback changes what students attend to when revising.', 'How does AI-generated feedback affect the depth of revision in undergraduate argumentative writing?'] },
+  t3: { project: 'AI & Learning', title: 'Transfer of reasoning', s: ['Students who did well with AI support struggled on the closed-book task.', 'Did the reasoning ever become theirs?', 'Supported performance looked competent, but unsupported performance did not.', 'Whether reasoning practised with support transfers without it.', 'To what extent does reasoning practised with AI scaffolding transfer to unsupported analytical tasks?'] },
+  t4: { project: 'Digital Identity', title: 'Online self-presentation', s: ['Students describe curating a different version of themselves per platform.', 'Is this fragmentation, or ordinary audience management?', 'Curation feels inauthentic to them, yet they describe each version as true.', 'What students treat as the authentic self across contexts.', 'How do undergraduates negotiate authenticity while maintaining distinct self-presentations across platforms?'] },
+  h1: { project: 'AI & Learning', title: 'AI and critical thinking', s: ['Arguments in seminar papers became smoother but less contested.', 'Is fluency displacing disagreement?', 'Writing quality improved while intellectual risk decreased.', 'Whether fluency and critical engagement trade off.', 'How does generative AI use affect the presence of counter-argument in undergraduate seminar writing?'] },
+  h2: { project: 'AI & Learning', title: 'Trust in AI feedback', s: ['Students accept AI comments they would argue with from a tutor.', 'Why does the tool carry more authority?', 'The feedback is less accountable, but more readily accepted.', 'What makes AI feedback feel authoritative.', 'What features of AI-generated feedback shape graduate students\u2019 willingness to accept it uncritically?'] },
+  h3: { project: 'Digital Identity', title: 'Algorithmic authority', s: ['Students cite search rankings as evidence of importance.', 'Where does ranking turn into authority?', 'Ranking is a convenience signal, but it is read as a judgement of quality.', 'How students infer credibility from position in a result list.', 'How do undergraduates infer source credibility from algorithmic ranking during literature search?'] }
+};
+
+const TEACHER = [
+  { label: 'Initial observation', by: 'STUDENT', f: [['Student input', 'They finish things much faster.'], ['AI intervention', 'Reflected the observation back; asked what was actually observed.'], ['Student response', 'Students complete assignments much faster when they use AI.']] },
+  { label: 'Tension identified', by: 'STUDENT', f: [['AI intervention', 'Asked whether faster completion necessarily meant something improved.'], ['Student input', 'Maybe they get better results without learning more.'], ['Revision', 'Performance may improve without equivalent learning.']] },
+  { label: 'Unknown articulated', by: 'STUDENT', f: [['AI intervention', 'Asked what would be needed to distinguish the two possibilities.'], ['Student input', 'Whether they can still do the same thing without AI.'], ['Revision', 'Can students perform the same reasoning independently?']] },
+  { label: 'Question v1', by: 'STUDENT', f: [['AI intervention', 'Listed the established pieces; declined to compose the question.'], ['Student input', 'When graduate students use AI while reading sources, can they still analyse conflicting sources on their own?'], ['Revision', 'First formulation retained in the learner\u2019s own wording.']] },
+  { label: 'Assumption challenged', by: 'AI PROMPT', f: [['AI intervention', 'You are assuming that AI-assisted performance may conceal weaker independent ability.'], ['Student response', 'It could also be that they never had to hold conflicting sources in mind before, so the skill was never there.'], ['Revision', 'Learner accepted the alternative explanation as a rival account, not a replacement.']] },
+  { label: 'Question narrowed', by: 'STUDENT', f: [['AI intervention', 'Proposed a decomposition of \u201cAI assistance\u201d and \u201clearning\u201d.'], ['Student input', 'Kept: reasoning support, independent reasoning. Removed: search, recall.'], ['Revision', 'Scope decision made by the learner.']] },
+  { label: 'Question v2', by: 'STUDENT', f: [['Student input', 'When graduate students use generative AI during literature synthesis, how does AI assistance affect their ability to independently analyze conflicting sources?'], ['AI intervention', 'None. Wording unchanged.'], ['Revision', '4 learner revisions across the session.']] }
+];
+
+const OWNERSHIP = [
+  ['Observation', 'Student'], ['Tension', 'Student'], ['Uncertainty framing', 'Student'],
+  ['Scope prompt', 'AI'], ['Scope decision', 'Student'], ['Counterexample prompt', 'AI'],
+  ['Revision', 'Student'], ['Final question', 'Student']
+];
+
+const CAPABILITY = [
+  ['Question Formation', 'Strong'], ['Uncertainty Decomposition', 'Developing'],
+  ['Evidence Reasoning', 'Not yet observed'], ['Counter-reasoning', 'Developing'], ['Independent Revision', 'Strong']
+];
+
+const TOPIC_MENU = ['Rename', 'Pin', 'Move to project', '-', 'Share', 'Archive', 'Delete'];
+
+let uid = 0;
+const nid = () => 'c' + (++uid);
+
+class Component extends DCLogic {
+  state = {
+    theme: 'light', role: 'student', view: 'empty', topicId: null, readOnly: false,
+    title: 'Untitled question', project: 'AI & Learning',
+    seed: '', cards: [], revealed: 1, branchOpen: false,
+    editing: null, draft: '', showTry: false,
+    thread: [], hintIx: {}, hover: null, reviewOpen: null, reviewDraft: '',
+    menu: null, connectFor: null, intro: false, reflect: false, unpack: false,
+    unpackState: {}, checks: {}, checkOpen: null, ask: '', collapsed: {}
+  };
+
+  // ---------- helpers ----------
+  cardsIn(branch) { return this.state.cards.filter(c => c.branch === branch); }
+  cardAt(stage, branch) { return this.state.cards.find(c => c.stage === stage && c.branch === branch); }
+  stageIdx(s) { return STAGES.indexOf(s); }
+
+  currentStage() {
+    for (let i = 0; i < STAGES.length; i++) if (!this.cardAt(STAGES[i], 'main')) return STAGES[i];
+    return 'QUESTION';
+  }
+
+  say(msg) {
+    this.setState(s => ({ thread: s.thread.concat([Object.assign({ id: nid(), from: 'coach' }, msg)]) }));
+  }
+  saidBy(text) {
+    this.setState(s => ({ thread: s.thread.concat([{ id: nid(), from: 'student', text: text }]) }));
+  }
+
+  // ---------- entry ----------
+  onSeed = e => this.setState({ seed: e.target.value });
+  onExample = () => this.setState({ seed: "Students seem to finish work faster with AI, but I'm not sure they're learning more." });
+  onNew = () => this.setState({ view: 'empty', seed: '', cards: [], revealed: 1, thread: [], title: 'Untitled question', project: 'AI & Learning', topicId: null, readOnly: false, branchOpen: false, editing: null, checks: {}, unpackState: {}, hintIx: {} });
+  onLibrary = () => this.setState({ view: 'library', menu: null });
+
+  onStart = () => {
+    const text = (this.state.seed || '').trim();
+    if (!text) return;
+    const broad = /(want to|would like to|going to)\s+(study|research|look at|explore)|^how (does|do|ai)|affects? (college|university|students)\b/i.test(text) && !/noticed?|faster|seems?|but\b/i.test(text);
+    if (broad) {
+      this.setState({ view: 'canvas', readOnly: false, title: text.replace(/^i want to study\s*/i, '').replace(/\.$/, ''), cards: [], revealed: 1, intro: true, thread: [] });
+      this.say({ text: 'That is a topic — a broad area rather than something you have observed.' });
+      this.say({ text: 'What have you noticed about college students using AI that makes you curious?' });
+    } else {
+      const c = { id: nid(), stage: 'NOTICE', branch: 'main', text: text, owner: 'Student thought', revisions: 0 };
+      this.setState({ view: 'canvas', readOnly: false, title: this.deriveTitle(text), cards: [c], revealed: 2, intro: true, thread: [] });
+      this.say({ text: META.NOTICE.hints[0] });
+      this.say({ text: META.NOTICE.after, hint: 'WONDER' });
+    }
+  };
+
+  deriveTitle(t) {
+    const w = t.replace(/[".]/g, '').split(/\s+/).slice(0, 6).join(' ');
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }
+
+  onCloseIntro = () => this.setState({ intro: false });
+  onTheme = () => this.setState(s => ({ theme: s.theme === 'light' ? 'dark' : 'light' }));
+  onSettings = ev => this.openMenu(ev, [
+    { label: 'Account' }, { label: 'Preferences' }, { label: 'Keyboard shortcuts' }, '-', { label: 'Sign out' }
+  ]);
+  onStudent = () => this.setState(s => ({ role: 'student', view: s.cards.length ? 'canvas' : 'empty' }));
+  onInstructor = () => this.setState({ role: 'instructor', view: 'teacher', menu: null });
+  onTitle = e => this.setState({ title: e.target.value });
+
+  openTopic = id => {
+    const sp = SPINES[id];
+    if (!sp) return;
+    const cards = sp.s.map((t, i) => ({ id: nid(), stage: STAGES[i], branch: 'main', text: t, owner: 'Student thought', revisions: 0 }));
+    this.setState({
+      view: 'canvas', role: 'student', topicId: id, readOnly: true, title: this.cap(sp.title), project: sp.project,
+      cards: cards, revealed: 5, branchOpen: false, editing: null, menu: null, thread: [], checks: {}, hintIx: {}
+    });
+    this.say({ text: 'This question is settled for now. You can reread the reasoning that produced it, or reopen it to revise.' });
+  };
+  cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+
+  // ---------- menus ----------
+  openMenu = (ev, items) => {
+    ev.preventDefault(); ev.stopPropagation();
+    this.setState({ menu: { x: Math.min(ev.clientX, window.innerWidth - 210), y: Math.min(ev.clientY, window.innerHeight - 240), items: items } });
+  };
+  onCloseMenu = ev => { if (ev) ev.preventDefault(); this.setState({ menu: null }); };
+  topicMenu = (ev, id) => this.openMenu(ev, TOPIC_MENU.map(l => l === '-' ? '-' : { label: l, danger: l === 'Delete', onClick: () => this.setState({ menu: null }) }));
+  onDocMenu = ev => this.openMenu(ev, [
+    { label: 'Rename' }, { label: 'Pin' }, { label: 'Move to project' }, '-',
+    { label: 'Export reasoning' }, { label: 'Archive' }, { label: 'Delete', danger: true }
+  ]);
+
+  // ---------- editing ----------
+  startEdit = card => this.setState({ editing: { id: card.id, stage: card.stage, branch: card.branch }, draft: card.text, showTry: false, reviewOpen: null });
+  startNew = (stage, branch) => this.setState({ editing: { id: null, stage: stage, branch: branch }, draft: '', showTry: false });
+  onDraft = e => this.setState({ draft: e.target.value });
+  onCancel = () => this.setState({ editing: null, draft: '' });
+  onTry = () => this.setState({ showTry: true });
+
+  onSave = () => {
+    const ed = this.state.editing; const text = (this.state.draft || '').trim();
+    if (!ed || !text) return;
+    if (ed.id) {
+      const prev = this.state.cards.find(c => c.id === ed.id);
+      const changed = prev && prev.text.trim() !== text;
+      const idx = this.stageIdx(ed.stage);
+      this.setState(s => ({
+        editing: null, draft: '',
+        cards: s.cards.map(c => {
+          if (c.id === ed.id) return Object.assign({}, c, { text: text, revisions: c.revisions + 1 });
+          if (changed && this.stageIdx(c.stage) > idx) return Object.assign({}, c, { needsReview: true });
+          return c;
+        })
+      }));
+      if (changed) {
+        const down = this.state.cards.filter(c => this.stageIdx(c.stage) > idx);
+        if (down.length) {
+          this.say({ text: 'Your ' + ed.stage.toLowerCase() + ' is now narrower than it was. Does your current ' + (down[0].stage.toLowerCase()) + ' still follow from it?' });
+          this.say({ text: 'I have flagged the reasoning downstream of it. Only you can decide whether it still holds.' });
+        }
+      }
+      return;
+    }
+    const card = { id: nid(), stage: ed.stage, branch: ed.branch, text: text, owner: this.state.showTry ? 'Student + AI scaffold' : 'Student thought', revisions: 0 };
+    const idx = this.stageIdx(ed.stage);
+    this.setState(s => ({ cards: s.cards.concat([card]), editing: null, draft: '', revealed: ed.branch === 'main' ? Math.max(s.revealed, Math.min(idx + 2, 5)) : s.revealed }));
+    const meta = META[ed.stage];
+    this.say({ text: meta.after, hint: STAGES[Math.min(idx + 1, 4)] });
+    if (ed.stage === 'UNKNOWN' && ed.branch === 'main') this.pushPieces();
+  };
+
+  pushPieces = () => {
+    const g = st => { const c = this.cardAt(st, 'main'); return c ? c.text : 'not yet stated'; };
+    this.say({
+      kind: 'pieces',
+      text: 'These are the pieces you have established. Write the question yourself — I will not assemble it for you.',
+      items: [
+        { k: 'OBSERVED', v: g('NOTICE') }, { k: 'UNRESOLVED', v: g('WONDER') },
+        { k: 'IN TENSION', v: g('TENSION') }, { k: 'NOT YET KNOWN', v: g('UNKNOWN') }
+      ]
+    });
+  };
+
+  // ---------- review ----------
+  openReview = card => this.setState({ reviewOpen: card.id, reviewDraft: '', editing: null });
+  onReviewChange = e => this.setState({ reviewDraft: e.target.value });
+  onHolds = card => {
+    if (!(this.state.reviewDraft || '').trim()) return;
+    const note = this.state.reviewDraft.trim();
+    this.setState(s => ({ cards: s.cards.map(c => c.id === card.id ? Object.assign({}, c, { needsReview: false }) : c), reviewOpen: null, reviewDraft: '' }));
+    this.saidBy(note);
+    this.say({ text: 'Noted. You decided the ' + card.stage.toLowerCase() + ' still follows. That decision is now part of your record, not mine.' });
+  };
+  onReviseNow = card => this.setState(s => ({ reviewOpen: null, reviewDraft: '', editing: { id: card.id, stage: card.stage, branch: card.branch }, draft: card.text, cards: s.cards.map(c => c.id === card.id ? Object.assign({}, c, { needsReview: false }) : c) }));
+
+  // ---------- branch / connect ----------
+  onBranch = card => {
+    this.setState({ branchOpen: true });
+    this.say({ text: 'A second reading of the same wonder is legitimate. Write the alternative — do not soften the first one to make room for it.' });
+  };
+  openConnect = card => this.setState({ connectFor: card.id });
+  onCloseConnect = () => this.setState({ connectFor: null });
+  pickConnect = (target) => {
+    const id = this.state.connectFor;
+    this.setState(s => ({ cards: s.cards.map(c => c.id === id ? Object.assign({}, c, { connection: target.stage + ' — ' + target.text }) : c), connectFor: null }));
+  };
+
+  cardMenu = (ev, card) => this.openMenu(ev, [
+    { label: 'Edit', onClick: () => { this.setState({ menu: null }); this.startEdit(card); } },
+    { label: 'Connect', onClick: () => this.setState({ menu: null, connectFor: card.id }) },
+    { label: 'Mark for review', onClick: () => this.setState(s => ({ menu: null, cards: s.cards.map(c => c.id === card.id ? Object.assign({}, c, { needsReview: true }) : c) })) },
+    '-',
+    { label: 'Delete', danger: true, onClick: () => this.setState(s => ({ menu: null, cards: s.cards.filter(c => c.id !== card.id) })) }
+  ]);
+
+  // ---------- coach ----------
+  onHint = stage => {
+    const st = stage || this.currentStage();
+    const lvl = Math.min((this.state.hintIx[st] || 0), META[st].hints.length - 1);
+    this.setState(s => ({ hintIx: Object.assign({}, s.hintIx, { [st]: Math.min(lvl + 1, META[st].hints.length) }) }));
+    this.say({ text: META[st].hints[lvl], hint: lvl + 1 < META[st].hints.length ? st : null, again: true });
+  };
+
+  onChallenge = () => {
+    const st = this.currentStage();
+    const prev = STAGES[Math.max(this.stageIdx(st) - 1, 0)];
+    const c = META[this.cardAt(st, 'main') ? st : prev].challenge;
+    this.say({ text: c.assumption });
+    this.say({ text: c.question, hint: st });
+  };
+
+  onEvaluate = () => {
+    const g = st => this.cardAt(st, 'main');
+    const n = g('NOTICE'), w = g('WONDER'), t = g('TENSION'), u = g('UNKNOWN'), q = g('QUESTION');
+    const has = c => c && c.text.trim().length > 12;
+    const rows = [
+      ['Specificity', has(q) ? (/(graduate|undergraduate|doctoral|first-year)/i.test(q.text) ? 'Strong' : 'Developing') : has(n) ? 'Developing' : 'Not yet established'],
+      ['Tension', has(t) ? (/(although|but|while|may not|without)/i.test(t.text) ? 'Strong' : 'Developing') : 'Not yet established'],
+      ['Uncertainty', has(u) ? (/(whether|can|would)/i.test(u.text) ? 'Strong' : 'Developing') : 'Not yet established'],
+      ['Grounding', has(n) ? 'Developing' : 'Not yet established'],
+      ['Contestability', has(q) ? 'Developing' : has(t) && has(u) ? 'Developing' : 'Unclear']
+    ];
+    let next = 'Start from something you actually observed. Everything else follows from it.';
+    if (has(u) && has(t)) next = 'Your uncertainty is clear, but the tension currently assumes that faster performance and learning should move together. What would justify that assumption?';
+    else if (has(t)) next = 'Your tension holds, but nothing yet says what evidence would settle it. Name the gap.';
+    else if (has(w)) next = 'Your wonder is open, which is right. Now say which two claims are hard to reconcile.';
+    else if (has(n)) next = 'Your observation is clear. What about it is unresolved?';
+    this.say({ kind: 'eval', rows: rows, next: next });
+  };
+
+  onAsk = e => this.setState({ ask: e.target.value });
+  onAskKey = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.onSend(); } };
+
+  onSend = () => {
+    const q = (this.state.ask || '').trim();
+    if (!q) return;
+    this.setState({ ask: '' });
+    this.saidBy(q);
+    const st = this.currentStage();
+    if (/give me (a|the) (research )?question|write (my|the) question|what should my question be|just tell me/i.test(q)) {
+      const missing = !this.cardAt('NOTICE', 'main') ? 'observation' : !this.cardAt('TENSION', 'main') ? 'tension' : !this.cardAt('UNKNOWN', 'main') ? 'uncertainty' : null;
+      if (missing) {
+        this.say({ text: 'You have identified a phenomenon, but the ' + missing + ' is still unclear. Let us establish that first.' });
+        this.say({ text: META[st].prompt, hint: st });
+      } else {
+        this.say({ text: 'I will not write it. Every piece it needs is already yours.' });
+        this.pushPieces();
+      }
+      return;
+    }
+    if (/what (does|is|do you mean by)|define|meaning of|difference between/i.test(q)) {
+      this.say({ text: 'That one I can answer, because it is terminology rather than the move you are practising.' });
+      this.say({ text: 'A construct is the thing you claim to be studying; an indicator is what you actually measure. Most weak questions collapse the two. Which of yours is which?' });
+      return;
+    }
+    if (/stuck|don'?t know|no idea|help|can'?t think/i.test(q)) { this.onHint(st); return; }
+    if (/am i right|is this good|does this work|any good/i.test(q)) { this.onEvaluate(); return; }
+    this.say({ text: 'You seem to be saying that ' + q.replace(/^i (think|feel|guess) (that )?/i, '').replace(/[.?!]$/, '') + '.' });
+    this.say({ text: META[st].prompt, hint: st });
+  };
+
+  // ---------- refinement / unpack ----------
+  toggleCheck = i => this.setState(s => ({ checkOpen: s.checkOpen === i ? null : i }));
+  onCheck = (i, e) => { const v = e.target.value; this.setState(s => ({ checks: Object.assign({}, s.checks, { [i]: v }) })); };
+  onUnpack = () => this.setState({ unpack: true });
+  onCloseUnpack = () => this.setState({ unpack: false, renaming: null });
+  upd = (key, patch) => this.setState(s => ({ unpackState: Object.assign({}, s.unpackState, { [key]: Object.assign({ status: 'open', label: null, def: '', renaming: false, defining: false }, s.unpackState[key], patch) }) }));
+
+  toggleProject = name => this.setState(s => ({ collapsed: Object.assign({}, s.collapsed, { [name]: !s.collapsed[name] }) }));
+  onReflect = () => this.setState({ reflect: true });
+  onCloseReflect = () => this.setState({ reflect: false });
+
+  // ---------- styles ----------
+  navItem(active) {
+    return 'flex:1;text-align:left;padding:6px 8px;font-size:12.5px;border-radius:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:' + (active ? 'var(--text)' : 'var(--text-2)') + ';' + (active ? 'font-weight:500;' : '');
+  }
+  qualStyle(v) {
+    const c = v === 'Strong' ? 'var(--text)' : v === 'Developing' ? 'var(--text-2)' : 'var(--text-3)';
+    return 'font-size:11.5px;letter-spacing:0.03em;color:' + c + ';';
+  }
+
+  renderVals() {
+    const s = this.state;
+    const cur = this.currentStage();
+    const curIdx = this.stageIdx(cur);
+    const ro = s.readOnly;
+
+    const topicRow = (id, title) => ({
+      id: id, title: this.cap(title), style: this.navItem(s.topicId === id),
+      onOpen: () => this.openTopic(id), onMenu: ev => this.topicMenu(ev, id)
+    });
+
+    const projectDefs = [
+      { name: 'AI & Learning', ids: ['t1', 't2', 't3'] },
+      { name: 'Digital Identity', ids: ['t4'] }
+    ];
+
+    // ----- spine -----
+    const spine = [];
+    const shown = STAGES.slice(0, Math.max(s.revealed, 1));
+    shown.forEach((stage, i) => {
+      const meta = META[stage];
+      const cells = [];
+      const mk = (branch, isBranch) => {
+        const card = this.cardAt(stage, branch);
+        const editing = s.editing && s.editing.stage === stage && s.editing.branch === branch && (s.editing.id ? (card && s.editing.id === card.id) : !card);
+        const width = isBranch ? 380 : 560;
+        const base = { wrapStyle: 'width:' + width + 'px;flex:0 0 ' + width + 'px;', isBranch: !!isBranch, stage: stage };
+        if (editing) {
+          const ok = (s.draft || '').trim().length > 0;
+          return Object.assign(base, {
+            isEditor: true, hasCurrent: !!card, current: card ? card.text : '',
+            guidance: meta.guidance, prompt: meta.prompt, draft: s.draft, onDraft: this.onDraft,
+            showTry: s.showTry, tryLine: meta.tryLine, showTryToggle: !s.showTry,
+            onTry: this.onTry, onSave: this.onSave, onCancel: this.onCancel,
+            saveDisabled: !ok, saveLabel: card ? 'Save revision' : 'Save',
+            saveStyle: 'font-size:12.5px;padding:7px 14px;border-radius:8px;border:1px solid ' + (ok ? 'var(--brand)' : 'var(--border)') + ';color:' + (ok ? 'var(--brand)' : 'var(--text-3)') + ';' + (ok ? '' : 'cursor:default;')
+          });
+        }
+        if (!card) {
+          if (isBranch && !s.branchOpen) return null;
+          if (ro) return null;
+          return Object.assign(base, {
+            isEmptySlot: true, slotPrompt: meta.slot, onAdd: () => this.startNew(stage, branch),
+            slotStyle: 'display:block;width:100%;text-align:left;padding:20px 22px;border:1px dashed var(--border-2);border-radius:12px;background:transparent;animation:fadeUp 0.35s ease both;'
+          });
+        }
+        const hov = s.hover === card.id;
+        const isQ = stage === 'QUESTION';
+        return Object.assign(base, {
+          isCard: true, text: card.text, owner: card.owner,
+          needsReview: !!card.needsReview, isEmerging: isQ,
+          hasConnection: !!card.connection, connection: card.connection || '',
+          labelStyle: 'font-size:10.5px;letter-spacing:0.1em;color:' + (stage === cur && !ro ? 'var(--brand)' : 'var(--text-3)') + ';',
+          textStyle: 'font-size:' + (isQ ? '17px' : '15px') + ';line-height:1.6;color:var(--text);letter-spacing:-0.008em;text-wrap:pretty;',
+          cardStyle: 'border:1px solid ' + (hov ? 'var(--border-2)' : 'var(--border)') + ';background:var(--surface);border-radius:12px;padding:20px 22px;transition:border-color 0.18s ease;animation:fadeUp 0.35s ease both;' + (card.needsReview ? 'animation:fadeUp 0.35s ease both,pulseOnce 1.4s ease-out 0.2s 1;' : ''),
+          actionsStyle: 'display:flex;gap:14px;align-items:center;opacity:' + (ro ? 0 : hov ? 1 : 0.42) + ';transition:opacity 0.18s ease;',
+          onEnter: () => this.setState({ hover: card.id }), onLeave: () => this.setState({ hover: null }),
+          onEdit: () => this.startEdit(card), onConnect: () => this.openConnect(card),
+          canBranch: stage === 'WONDER' && !ro, onBranch: () => this.onBranch(card),
+          onMore: ev => this.cardMenu(ev, card),
+          reviewPillStyle: 'font-size:10px;letter-spacing:0.07em;color:var(--brand);border:1px solid var(--brand);border-radius:5px;padding:2px 7px;background:var(--brand-soft);',
+          onReview: () => this.openReview(card),
+          reviewOpen: s.reviewOpen === card.id,
+          reviewQuestion: 'Your upstream thought changed. Does this ' + stage.toLowerCase() + ' still follow from it?',
+          reviewValue: s.reviewDraft, onReviewChange: this.onReviewChange,
+          reviewDisabled: !(s.reviewDraft || '').trim(),
+          holdsStyle: 'font-size:12.5px;padding:6px 12px;border-radius:8px;border:1px solid ' + ((s.reviewDraft || '').trim() ? 'var(--brand)' : 'var(--border)') + ';color:' + ((s.reviewDraft || '').trim() ? 'var(--brand)' : 'var(--text-3)') + ';',
+          onHolds: () => this.onHolds(card), onReviseNow: () => this.onReviseNow(card),
+          reviewHintStyle: 'font-size:11px;color:var(--text-3);max-width:230px;line-height:1.45;text-align:right;'
+        });
+      };
+      const m = mk('main', false);
+      if (m) cells.push(m);
+      if (s.branchOpen && this.stageIdx(stage) >= 2) {
+        const b = mk('b', true);
+        if (b) cells.push(b);
+      }
+      if (!cells.length) return;
+      spine.push({ key: stage, stage: stage, cells: cells, hasRel: i > 0, rel: REL[stage] || '' });
+    });
+
+    const stageChips = STAGES.map((st, i) => {
+      const done = !!this.cardAt(st, 'main');
+      const isCur = !ro && st === cur;
+      const color = isCur ? 'var(--brand)' : done ? 'var(--text-2)' : 'var(--text-3)';
+      return {
+        label: st, hasArrow: i < 4,
+        dotStyle: 'width:5px;height:5px;border-radius:50%;display:block;margin-right:8px;' + (done || isCur ? 'background:' + color + ';' : 'border:1px solid var(--border-2);'),
+        labelStyle: 'font-size:10px;letter-spacing:0.11em;color:' + color + ';' + (isCur ? 'font-weight:500;' : '')
+      };
+    });
+
+    // ----- coach -----
+    const thread = s.thread.map((m, i) => {
+      const coach = m.from === 'coach';
+      return {
+        id: m.id,
+        wrapStyle: 'margin-top:' + (i === 0 ? '26px' : '22px') + ';padding-top:22px;border-top:1px solid var(--border);animation:fadeUp 0.3s ease both;',
+        labelStyle: 'font-size:10px;letter-spacing:0.09em;color:' + (coach ? 'var(--brand)' : 'var(--text-3)') + ';margin-bottom:9px;',
+        label: coach ? 'COACH' : 'YOU',
+        isText: !m.kind, text: m.text || '',
+        textStyle: 'font-size:14px;line-height:1.65;text-wrap:pretty;color:' + (coach ? 'var(--text)' : 'var(--text-2)') + ';' + (coach ? '' : 'font-style:italic;'),
+        isPieces: m.kind === 'pieces', items: m.items || [],
+        isEval: m.kind === 'eval', next: m.next || '',
+        rows: (m.rows || []).map(r => ({ k: r[0], v: r[1], style: this.qualStyle(r[1]) })),
+        hasHintBtn: !!m.hint && !ro, hintLabel: m.again ? 'Give me another hint' : 'Give me a hint',
+        onHint: () => this.onHint(m.hint)
+      };
+    });
+
+    const checks = CHECKS.map((q, i) => ({
+      q: q, open: s.checkOpen === i, value: s.checks[i] || '',
+      onToggle: () => this.toggleCheck(i), onChange: e => this.onCheck(i, e),
+      dotStyle: 'width:5px;height:5px;border-radius:50%;display:block;flex:0 0 5px;' + ((s.checks[i] || '').trim() ? 'background:var(--brand);' : 'border:1px solid var(--border-2);'),
+      caretStyle: 'font-size:13px;color:var(--text-3);display:block;transition:transform 0.18s ease;transform:rotate(' + (s.checkOpen === i ? '90deg' : '0deg') + ');'
+    }));
+
+    const unpackGroups = UNPACK.map(g => ({
+      name: g.name,
+      items: g.items.map(label => {
+        const key = g.name + ':' + label;
+        const st = s.unpackState[key] || {};
+        const removed = st.status === 'removed';
+        const kept = st.status === 'kept';
+        const shownLabel = st.label || label;
+        return {
+          plain: !st.renaming, renaming: !!st.renaming, label: shownLabel, value: shownLabel,
+          onChange: e => this.upd(key, { label: e.target.value }),
+          onKey: e => { if (e.key === 'Enter') this.upd(key, { renaming: false }); },
+          rowStyle: 'display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--border);opacity:' + (removed ? 0.4 : 1) + ';',
+          labelStyle: 'flex:1;font-size:13px;color:var(--text' + (kept ? ')' : '-2)') + ';' + (removed ? 'text-decoration:line-through;' : ''),
+          tag: kept ? 'KEPT' : removed ? 'REMOVED' : st.label ? 'RENAMED' : '',
+          tagStyle: 'font-size:9.5px;letter-spacing:0.08em;color:var(--text-3);flex:0 0 auto;min-width:52px;',
+          onKeep: () => this.upd(key, { status: kept ? 'open' : 'kept' }),
+          onRemove: () => this.upd(key, { status: removed ? 'open' : 'removed' }),
+          onRename: () => this.upd(key, { renaming: true }),
+          onDefine: () => this.upd(key, { defining: !st.defining }),
+          defining: !!st.defining, def: st.def || '', onDef: e => this.upd(key, { def: e.target.value }),
+          keepStyle: 'font-size:11.5px;color:' + (kept ? 'var(--brand)' : 'var(--text-3)') + ';',
+          removeStyle: 'font-size:11.5px;color:' + (removed ? 'var(--text)' : 'var(--text-3)') + ';',
+          defineStyle: 'font-size:11.5px;color:' + (st.def ? 'var(--text)' : 'var(--text-3)') + ';'
+        };
+      })
+    }));
+    const decided = Object.keys(s.unpackState).filter(k => { const v = s.unpackState[k]; return v.status === 'kept' || v.status === 'removed' || v.label || v.def; }).length;
+
+    const g = st => { const c = this.cardAt(st, 'main'); return c ? c.text : '—'; };
+    const reflectSteps = [
+      ['INITIAL IDEA', g('NOTICE')], ['FIRST TENSION', g('TENSION')], ['KEY UNCERTAINTY', g('UNKNOWN')],
+      ['QUESTION V1', g('QUESTION')], ['CHALLENGE', META.TENSION.challenge.assumption], ['QUESTION V2', 'Still yours to write.']
+    ].map((p, i, arr) => ({
+      k: p[0], v: p[1], hasLine: i > 0,
+      dotStyle: 'width:7px;height:7px;border-radius:50%;display:block;margin-top:4px;flex:0 0 7px;background:' + (i === arr.length - 1 ? 'var(--brand)' : 'var(--border-2)') + ';'
+    }));
+
+    const connectCard = s.connectFor ? s.cards.find(c => c.id === s.connectFor) : null;
+    const connectOptions = connectCard ? s.cards.filter(c => c.id !== connectCard.id && this.stageIdx(c.stage) < this.stageIdx(connectCard.stage)).map(c => ({ stage: c.stage, text: c.text, onPick: () => this.pickConnect(c) })) : [];
+
+    const menuItems = (s.menu ? s.menu.items : []).map(it => it === '-'
+      ? { isDivider: true, isItem: false }
+      : {
+        isItem: true, isDivider: false, label: it.label,
+        onClick: it.onClick || (() => this.setState({ menu: null })),
+        style: 'display:block;width:100%;text-align:left;padding:6px 10px;border-radius:7px;font-size:12.5px;color:' + (it.danger ? 'var(--danger)' : 'var(--text)') + ';'
+      });
+
+    const hasQuestion = !!this.cardAt('QUESTION', 'main');
+
+    return {
+      theme: s.theme, themeIcon: s.theme === 'light' ? '◐' : '◑',
+      isEmpty: s.view === 'empty', isCanvas: s.view === 'canvas', isLibrary: s.view === 'library', isTeacher: s.view === 'teacher',
+      showCoach: s.view === 'canvas' || s.view === 'empty',
+      seed: s.seed, onSeed: this.onSeed, onExample: this.onExample, onStart: this.onStart,
+      startBtnStyle: 'font-size:13.5px;padding:10px 20px;border-radius:9px;border:1px solid ' + ((s.seed || '').trim() ? 'var(--brand)' : 'var(--border)') + ';color:' + ((s.seed || '').trim() ? 'var(--brand)' : 'var(--text-3)') + ';white-space:nowrap;',
+      onNew: this.onNew, onLibrary: this.onLibrary, onTheme: this.onTheme, onSettings: this.onSettings,
+      onStudent: this.onStudent, onInstructor: this.onInstructor,
+      studentTabStyle: 'flex:1;padding:5px 0;border-radius:6px;font-size:11.5px;text-align:center;' + (s.role === 'student' ? 'background:var(--surface);color:var(--text);box-shadow:0 1px 1px rgba(0,0,0,0.04);' : 'color:var(--text-3);'),
+      instructorTabStyle: 'flex:1;padding:5px 0;border-radius:6px;font-size:11.5px;text-align:center;' + (s.role === 'instructor' ? 'background:var(--surface);color:var(--text);box-shadow:0 1px 1px rgba(0,0,0,0.04);' : 'color:var(--text-3);'),
+
+      pinned: [topicRow('p1', SPINES.p1.title)],
+      projects: projectDefs.map(p => ({
+        name: p.name, open: !s.collapsed[p.name], onToggle: () => this.toggleProject(p.name),
+        caretStyle: 'font-size:12px;color:var(--text-3);display:block;transition:transform 0.18s ease;transform:rotate(' + (s.collapsed[p.name] ? '0deg' : '90deg') + ');',
+        items: p.ids.map(id => topicRow(id, SPINES[id].title))
+      })),
+      history: [
+        { label: 'TODAY', items: [topicRow('h1', SPINES.h1.title)] },
+        { label: 'YESTERDAY', items: [topicRow('h2', SPINES.h2.title)] },
+        { label: 'LAST 7 DAYS', items: [topicRow('h3', SPINES.h3.title)] }
+      ],
+
+      breadcrumb: s.project, titleShort: s.title, title: s.title, onTitle: this.onTitle, readOnly: ro,
+      onDocMenu: this.onDocMenu, canReflect: this.stageIdx(cur) >= 3 || hasQuestion,
+      onReflect: this.onReflect, reflectOpen: s.reflect, onCloseReflect: this.onCloseReflect, reflectSteps: reflectSteps,
+
+      stageChips: stageChips, spine: spine,
+      showRefine: hasQuestion, checks: checks, onUnpack: this.onUnpack,
+      unpackOpen: s.unpack, onCloseUnpack: this.onCloseUnpack, unpackGroups: unpackGroups,
+      unpackSummary: decided ? decided + ' term' + (decided === 1 ? '' : 's') + ' settled by you' : 'Nothing settled yet',
+
+      coachStatus: ro ? 'Reading a completed question' : 'Working with your current reasoning',
+      coachState: ro ? 'This reasoning is complete.' : META[cur].state,
+      coachNext: ro ? 'Reopen any thought to revise it. Downstream reasoning will be flagged, not rewritten.' : META[cur].next,
+      thread: thread,
+      quickActions: [
+        { label: 'Give me a hint', onClick: () => this.onHint(null) },
+        { label: 'Challenge my thinking', onClick: this.onChallenge },
+        { label: 'Evaluate my reasoning', onClick: this.onEvaluate }
+      ],
+      ask: s.ask, onAsk: this.onAsk, onAskKey: this.onAskKey, onSend: this.onSend,
+
+      menu: !!s.menu, menuItems: menuItems, onCloseMenu: this.onCloseMenu,
+      menuStyle: s.menu ? 'position:fixed;left:' + s.menu.x + 'px;top:' + s.menu.y + 'px;width:194px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:5px;box-shadow:0 6px 24px rgba(0,0,0,0.10);animation:fadeIn 0.12s ease both;' : 'display:none;',
+
+      showIntro: s.intro, onCloseIntro: this.onCloseIntro,
+      connectOpen: !!s.connectFor, connectOptions: connectOptions, onCloseConnect: this.onCloseConnect,
+
+      libraryRows: Object.keys(SPINES).map(id => ({
+        title: this.cap(SPINES[id].title), meta: SPINES[id].project.toUpperCase(),
+        question: SPINES[id].s[4], onOpen: () => this.openTopic(id)
+      })),
+
+      teacherNodes: TEACHER.map((n, i) => ({
+        label: n.label, by: n.by, hasLine: i > 0, open: !!s['tn' + i],
+        onToggle: () => this.setState(st => ({ ['tn' + i]: !st['tn' + i] })),
+        dotStyle: 'width:11px;height:11px;border-radius:50%;display:block;margin-top:4px;flex:0 0 11px;border:1px solid ' + (n.by === 'AI PROMPT' ? 'var(--brand)' : 'var(--border-2)') + ';background:' + (n.by === 'AI PROMPT' ? 'var(--brand-soft)' : 'var(--surface)') + ';',
+        caretStyle: 'font-size:13px;color:var(--text-3);display:block;transition:transform 0.18s ease;transform:rotate(' + (s['tn' + i] ? '90deg' : '0deg') + ');',
+        fields: n.f.map(f => ({ k: f[0].toUpperCase(), v: f[1], color: /AI/.test(f[0]) ? 'var(--brand)' : 'var(--text-3)' }))
+      })),
+      ownership: OWNERSHIP.map(o => ({ k: o[0], v: o[1], style: 'font-size:11.5px;letter-spacing:0.04em;color:' + (o[1] === 'AI' ? 'var(--brand)' : 'var(--text-2)') + ';' })),
+      capability: CAPABILITY.map(c => ({ k: c[0], v: c[1], style: this.qualStyle(c[1]) }))
+    };
+  }
+}
+
+</script>
+</body>
+</html>
