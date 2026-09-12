@@ -34,9 +34,10 @@ Open http://localhost:5173, press **New question**, and build a map.
 ## Testing it
 
 ```bash
-pnpm test                                   # 69 unit tests: 45 over the invariants, 24 over the agent boundary
+pnpm test                                   # 83 unit tests: 56 over the invariants, 27 over the agent boundary
 pnpm --filter @coral/server test:db        # the five guards Postgres enforces
-pnpm --filter @coral/server test:e2e       # 71 checks over a whole session
+pnpm --filter @coral/server test:e2e       # 83 checks over a whole session
+pnpm --filter @coral/server probe "a query" # what retrieval returns, and at what level
 ```
 
 The end-to-end script drives a full session against a running server: a student
@@ -52,9 +53,10 @@ Four things in the interface exist to be tried rather than read:
 - **Coach tab → "Argue with this thought"** produces an objection and leaves it
   **on the table**. The only button that clears it is *Write it myself*, and it
   stays disabled until you have written something.
-- **Sources tab** returns four papers at different access levels. Two carry a
-  retrievable passage and two do not, so the evidence gate can be tried against
-  both. A paywalled source becomes usable only after **Upload the paper**.
+- **Sources tab** searches the real literature and shows the access level on
+  every result. Most arrive at `abstract`, so the gate is closed until you
+  **Upload the paper** or **Type a passage**. Dropping a scan with no text layer
+  is refused rather than promoted, which is the gate's whole point.
 - **Review tab**, in the instructor seat, shows a comment that survived two
   revisions: *reviewed v1, now v3*, with the text then and the text now.
 
@@ -87,6 +89,42 @@ slice: the ladder either teaches before it costs anything, or it does not teach.
 - The **Problem Frame** is a template fill over objects that already exist. The
   question is your thought word for word, and a refinement prompt you did not
   answer stays a gap rather than becoming prose.
+
+## A source is not evidence
+
+Search is real: OpenAlex, no key and no email, with the four fixture papers as
+the floor when the network is not there. The response says which answered.
+
+The whole slice turns on one distinction. A result can be open access *somewhere*
+and still not be a paper we can quote — the publisher link may refuse us, and a
+landing page is not a passage. So the access level is **derived from what we
+hold**, in `accessFrom`, and the structure it reads has no field for "is open
+access", "has a PDF url", or "full text is offered". The only thing that earns
+`open_full_text` is characters in hand.
+
+In practice that means most results arrive at `abstract`, and the probe prints
+the number that makes it concrete:
+
+```
+levels: {"abstract":8}
+offered but not held: 8
+```
+
+Eight papers whose publishers offer full text; none of them promoted. Set
+`OPENALEX_API_KEY` (free, from openalex.org/users) and OpenAlex's own structured
+text becomes reachable, so a passage arrives with the section heading it sat
+under — which is what makes a locator findable again.
+
+**Two ways past the gate, and both are the student's.** *Upload the paper* takes
+a PDF as its own bytes, extracts the text, and promotes the source. A file that
+is not a PDF, or a scan with no text layer, is refused with `ii.evidence` and the
+level does not move — a source at `user_upload` carrying no text would be a hole
+straight through the invariant. *Type a passage* is the honest path for a library
+book or a PDF that will not extract: it is recorded as `student_transcribed`,
+never as something retrieved, and it asks for a locator because a quote nobody
+can find again is not much better than one that was invented.
+
+There is still no passage provenance meaning "generated".
 
 ## The coach suggests a kind of thought; you write the sentence
 
@@ -198,7 +236,10 @@ system implies text it never retrieved has nowhere to live.
 | `POST /projects/:id/coach` | one move from the student's own agent, written through the guards |
 | `POST /projects/:id/proposals/:pid/accept` | the student writes the thought a proposal stands for |
 | `POST /projects/:id/proposals/:pid/dismiss` | decline it, on the record |
-| `POST /projects/:id/search` | fixture literature until real retrieval lands |
+| `POST /projects/:id/search` | OpenAlex, with the fixture as the floor; an empty query uses the question |
+| `GET /retrieval` | whether a content key is set, so full text is reachable |
+| `POST /projects/:id/sources/:sid/upload` | a PDF as its own bytes; refused unless it carries text |
+| `POST /projects/:id/sources/:sid/transcribe` | a passage typed from a paper the student holds |
 | `GET /projects/:id/drift` | how far each commented object has moved since review |
 
 ## Slice status
@@ -229,10 +270,26 @@ fields outside it are dropped rather than passed through, that a reply cannot
 talk its way into a rung, and that a provider which errors, returns nonsense or
 is missing lands on the ladder instead of on the student.
 
-**Next.** Slice 03 replaces the literature fixture with retrieval — OpenAlex,
-Semantic Scholar, Crossref and Unpaywall — and ships PDF upload with it, since
-the evidence gate blocks paywalled work without it.
+**Done (slice 03).** Real retrieval, and the gate holding against it. The access
+level is derived from what we hold rather than asserted, so a paper that is open
+access somewhere still arrives at `abstract` until its text is in hand. PDF
+upload and student transcription ship with the slice, because without them the
+gate would block every paywalled paper.
 
-Known gaps: literature search is a fixture, not retrieval; there is no auth, and
-the three seats are fixed rows. The Codex adapter is written but still
-unverified, since Codex is not installed here.
+Only OpenAlex is used. Unpaywall requires an identifying email on every request
+and reports OA status OpenAlex already carries; Crossref and Semantic Scholar
+would add a canonical citation string and a plain-text abstract, neither of
+which was worth a second service yet. Semantic Scholar's `tldr` is deliberately
+not used: it is a generated summary, and there is no provenance for that.
+
+**Next.** Slice 04 is claims and versions — detection as a proposal, the accept
+decision, revise into a new version against a stable identity, archive without
+deletion. Most of its machinery is already standing: the proposal path landed in
+slice 02 and identity-versus-version in slice 00, so the slice is mostly the
+claim-detection classifier and the interface that makes version history read as
+a record rather than as clutter.
+
+Known gaps: there is no auth, and the three seats are fixed rows. The Codex
+adapter is written but still unverified, since Codex is not installed here.
+Retrieval holds no full text without a content key, which is honest but means
+upload carries more weight than it eventually should.

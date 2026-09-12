@@ -1,14 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import {
   EVENT_TYPES, RELATIONS, SOURCE_ACCESS, THOUGHT_TYPES, commentDrift,
-  type CommentId, type ProjectId, type ProposalId,
+  type CommentId, type ProjectId, type ProposalId, type SourceId,
 } from '@coral/core';
 import { coach, detectProviders, type CoachRequestBody } from './coach.js';
 import { StageOutOfOrder, draftProblemFrame, writeStage, type StageWriteBody } from './spine.js';
 import {
   ProposalRefused, acceptProposal, dismissProposal, type AcceptProposalBody,
 } from './proposals.js';
-import { FIXTURE_PAPERS } from './fixtures.js';
+import { canRetrieveFullText, runSearch, type SearchBody } from './retrieval.js';
+import { MAX_PDF_BYTES, UploadRefused, transcribePassage, uploadPaper } from './upload.js';
 import { appendEvent, createProject, listProjects, loadProject } from './repo.js';
 
 export async function routes(app: FastifyInstance): Promise<void> {
@@ -123,46 +124,72 @@ export async function routes(app: FastifyInstance): Promise<void> {
   });
 
   /**
-   * Stand-in for literature search. Emits the fixture papers as coach events,
-   * capturing a passage only where one genuinely exists.
+   * Literature search.
+   *
+   * Real retrieval against OpenAlex, with the fixture as the floor when the
+   * network or the service is not there. The response says which answered and
+   * how many results OpenAlex claimed full text for that we declined to claim,
+   * because that number is the gate doing its job.
    */
-  app.post<{ Params: { id: string } }>('/projects/:id/search', async (request) => {
-    const projectId = request.params.id as ProjectId;
-    let view = await loadProject(projectId);
-    if (Object.keys(view.state.sources).length > 0) return view;
+  app.post<{ Params: { id: string }; Body: SearchBody }>(
+    '/projects/:id/search',
+    async (request) => runSearch(request.params.id as ProjectId, request.body ?? {}),
+  );
 
-    for (const paper of FIXTURE_PAPERS) {
-      const sourceId = crypto.randomUUID();
-      view = await appendEvent(projectId, {
-        actor: 'coach',
-        type: 'source.discovered',
-        payload: {
-          sourceId,
-          access: paper.access,
-          cite: paper.cite,
-          title: paper.title,
-          method: paper.method,
-          abstract: paper.abstract === '' ? null : paper.abstract,
-          externalUrl: null,
-          doi: null,
-        },
-      });
-      if (paper.passage !== null) {
-        view = await appendEvent(projectId, {
-          actor: 'coach',
-          type: 'passage.captured',
-          payload: {
-            passageId: crypto.randomUUID(),
-            sourceId,
-            text: paper.passage.text,
-            locator: paper.passage.locator,
-            provenance: paper.passage.provenance,
-          },
-        });
+  /**
+   * Drop a PDF on a source.
+   *
+   * Taken as a raw `application/pdf` body rather than multipart: the browser
+   * can post a File directly, and it saves a dependency whose only job would be
+   * to unwrap one part.
+   */
+  app.post<{ Params: { id: string; sourceId: string }; Body: Buffer }>(
+    '/projects/:id/sources/:sourceId/upload',
+    async (request, reply) => {
+      try {
+        return await uploadPaper(
+          request.params.id as ProjectId,
+          request.params.sourceId as SourceId,
+          new Uint8Array(request.body),
+        );
+      } catch (error) {
+        if (error instanceof UploadRefused) {
+          return reply.status(422).send({ invariant: error.invariant, message: error.message });
+        }
+        throw error;
       }
-    }
-    return view;
-  });
+    },
+  );
+
+  /** A passage typed from a paper the student holds but cannot upload. */
+  app.post<{
+    Params: { id: string; sourceId: string };
+    Body: { text: string; locator: string };
+  }>(
+    '/projects/:id/sources/:sourceId/transcribe',
+    async (request, reply) => {
+      try {
+        return await transcribePassage(
+          request.params.id as ProjectId,
+          request.params.sourceId as SourceId,
+          request.body,
+        );
+      } catch (error) {
+        if (error instanceof UploadRefused) {
+          return reply.status(422).send({ invariant: error.invariant, message: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  /** Whether this machine can reach full text at all. */
+  app.get('/retrieval', async () => ({
+    fullText: canRetrieveFullText(),
+    detail: canRetrieveFullText()
+      ? 'A content key is set, so an open paper can supply a quotable passage.'
+      : 'No content key, so retrieval stops at the abstract. Upload a paper to go further.',
+  }));
 
   /** How far a live object has moved since an instructor read it. */
   app.get<{ Params: { id: string } }>('/projects/:id/drift', async (request) => {

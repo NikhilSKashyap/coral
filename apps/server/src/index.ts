@@ -4,6 +4,7 @@ import { InvariantViolation } from '@coral/core';
 import { pool } from './db.js';
 import { ensureSeats } from './repo.js';
 import { routes } from './routes.js';
+import { MAX_PDF_BYTES } from './upload.js';
 
 const app = Fastify({ logger: { level: process.env['LOG_LEVEL'] ?? 'warn' } });
 
@@ -31,6 +32,20 @@ app.setErrorHandler((error: unknown, _request, reply) => {
 });
 
 await app.register(cors, { origin: true });
+
+/**
+ * A PDF arrives as its own bytes, not wrapped in a multipart part.
+ *
+ * Registered before the routes so the upload handler receives a Buffer. The cap
+ * is enforced here as well as in the handler, so an oversized body is rejected
+ * before it is all in memory.
+ */
+app.addContentTypeParser(
+  'application/pdf',
+  { parseAs: 'buffer', bodyLimit: MAX_PDF_BYTES },
+  (_request, body, done) => { done(null, body); },
+);
+
 await app.register(routes);
 
 app.get('/health', async () => {

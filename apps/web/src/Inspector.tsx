@@ -180,6 +180,7 @@ function BuildTab() {
 function SourcesTab() {
   const state = useStudio((s) => s.state);
   const search = useStudio((s) => s.search);
+  const uploadPaper = useStudio((s) => s.uploadPaper);
   const write = useStudio((s) => s.write);
   const busy = useStudio((s) => s.busy);
   const role = useStudio((s) => s.role);
@@ -188,6 +189,13 @@ function SourcesTab() {
   const [open, setOpen] = useState<string | null>(null);
   const [interpretation, setInterpretation] = useState('');
   const [warrant, setWarrant] = useState('');
+  const [query, setQuery] = useState('');
+  const [typing, setTyping] = useState<string | null>(null);
+
+  const lastSearch = useStudio((s) => s.lastSearch);
+  const fullTextAvailable = useStudio((s) => s.fullTextAvailable);
+  const refreshRetrieval = useStudio((s) => s.refreshRetrieval);
+  useEffect(() => { void refreshRetrieval(); }, [refreshRetrieval]);
 
   const sources = Object.values(state.sources);
   const passageFor = (s: Source): PassageId | null =>
@@ -215,16 +223,46 @@ function SourcesTab() {
   return (
     <>
       <span className="eyebrow">Literature</span>
-      {sources.length === 0 ? (
-        <>
-          <p className="empty">
-            Nothing searched yet. The fixture returns four papers at different access levels so the
-            evidence gate can be tried against each.
-          </p>
-          <button className="btn primary" onClick={() => void search()} disabled={busy}>
-            Search
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <textarea
+          className="field"
+          rows={2}
+          value={query}
+          placeholder="Search terms, or leave empty to search your own question."
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search the literature"
+        />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="btn primary" onClick={() => void search(query)} disabled={busy}>
+            {busy ? 'Searching\u2026' : 'Search'}
           </button>
-        </>
+          {lastSearch !== null && (
+            <span className="empty">
+              {lastSearch.added} of {lastSearch.found} added
+              {lastSearch.source === 'fixture' && ' \u00b7 offline fixture'}
+            </span>
+          )}
+        </div>
+        {lastSearch?.reason !== undefined && (
+          <span className="empty" style={{ color: 'var(--brand)' }}>
+            Retrieval could not answer, so the built-in fixture did. {lastSearch.reason}
+          </span>
+        )}
+        {lastSearch !== null && lastSearch.offeredButNotHeld > 0 && (
+          <span className="empty">
+            {lastSearch.offeredButNotHeld} of these are open access somewhere, but the passage is
+            not in hand{fullTextAvailable === false && ' (no content key set)'}. They stay at
+            abstract level until you upload the paper.
+          </span>
+        )}
+      </div>
+
+      {sources.length === 0 ? (
+        <p className="empty">
+          Nothing searched yet. Results come back at whatever level we can actually support, and
+          only a source with real text can back a claim.
+        </p>
       ) : (
         <div className="rows">
           {sources.map((source) => {
@@ -259,12 +297,31 @@ function SourcesTab() {
                       </button>
                     )}
                     {!usable && (
-                      <button
-                        className="btn"
-                        onClick={() => void write('student', 'source.uploaded', { sourceId: source.sourceId })}
-                      >
-                        Upload the paper
-                      </button>
+                      <>
+                        <label
+                          className="btn"
+                          style={{ cursor: busy ? 'not-allowed' : 'pointer' }}
+                        >
+                          Upload the paper
+                          <input
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            style={{ display: 'none' }}
+                            disabled={busy}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = '';
+                              if (file !== undefined) void uploadPaper(source.sourceId, file);
+                            }}
+                          />
+                        </label>
+                        <button
+                          className="btn ghost"
+                          onClick={() => setTyping(typing === source.sourceId ? null : source.sourceId)}
+                        >
+                          Type a passage
+                        </button>
+                      </>
                     )}
                     {!source.saved && (
                       <button
@@ -275,6 +332,13 @@ function SourcesTab() {
                       </button>
                     )}
                   </div>
+                )}
+
+                {typing === source.sourceId && (
+                  <TranscribeForm
+                    sourceId={source.sourceId}
+                    onDone={() => setTyping(null)}
+                  />
                 )}
 
                 {open === source.sourceId && (
@@ -304,6 +368,56 @@ function SourcesTab() {
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * A passage typed from a paper the student holds.
+ *
+ * The honest path for a library book, a scan with no text layer, or anything
+ * that will not extract. It asks for the sentences rather than a summary of
+ * them, and for a locator, because a quote nobody can find again is not much
+ * better than one that was invented.
+ */
+function TranscribeForm({ sourceId, onDone }: { sourceId: string; onDone: () => void }) {
+  const transcribe = useStudio((s) => s.transcribe);
+  const busy = useStudio((s) => s.busy);
+  const [text, setText] = useState('');
+  const [locator, setLocator] = useState('');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6 }}>
+      <label className="lbl">
+        <span className="eyebrow">The passage, in the paper&rsquo;s words</span>
+        <textarea
+          className="field"
+          rows={4}
+          value={text}
+          placeholder="Type or paste the sentences exactly as they appear."
+          onChange={(e) => setText(e.target.value)}
+        />
+      </label>
+      <label className="lbl">
+        <span className="eyebrow">Where it is</span>
+        <input
+          className="field"
+          value={locator}
+          placeholder="p. 9, Results"
+          onChange={(e) => setLocator(e.target.value)}
+        />
+      </label>
+      <button
+        className="btn primary"
+        disabled={busy || text.trim() === '' || locator.trim() === ''}
+        onClick={async () => { if (await transcribe(sourceId, text, locator)) onDone(); }}
+      >
+        Save the passage
+      </button>
+      <p className="empty">
+        Transcribing is you vouching for the text, so it earns the same level as an upload. It is
+        recorded as your transcription, not as something retrieved.
+      </p>
+    </div>
   );
 }
 

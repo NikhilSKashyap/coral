@@ -41,8 +41,10 @@ interface View {
     thoughts: Record<string, Thought>;
     versions: Record<string, Array<{ versionId: string }>>;
     relations: Record<string, { relation: string; removed: boolean }>;
-    sources: Record<string, { sourceId: string; cite: string; access: string }>;
-    passages: Record<string, { passageId: string; sourceId: string }>;
+    sources: Record<string, { sourceId: string; cite: string; access: string; title: string }>;
+    passages: Record<string, {
+      passageId: string; sourceId: string; text: string; locator: string; provenance: string;
+    }>;
     snapshots: Record<string, { snapshotId: string }>;
     comments: Record<string, unknown>;
     proposals: Record<string, {
@@ -70,6 +72,55 @@ async function post<T>(path: string, body?: unknown): Promise<{ status: number; 
       : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   });
   return { status: res.status, json: (await res.json()) as T };
+}
+
+interface SearchView extends View {
+  query: string;
+  source: 'openalex' | 'fixture';
+  reason?: string;
+  found: number;
+  added: number;
+  offeredButNotHeld: number;
+}
+
+/** Post raw bytes as a PDF, the way the browser posts a File. */
+async function postBytes(
+  path: string, bytes: Uint8Array,
+): Promise<{ status: number; json: View }> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/pdf' },
+    body: bytes,
+  });
+  return { status: res.status, json: (await res.json()) as View };
+}
+
+/**
+ * A structurally valid PDF with no text layer, which is what a scan is.
+ *
+ * Built here rather than committed as a binary so the check is readable: one
+ * page, one filled rectangle, not a character of text anywhere.
+ */
+function textlessPdf(): Uint8Array {
+  const content = '0 0 1 rg 10 10 100 100 re f';
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R >>',
+    `<< /Length ${String(content.length)} >>\nstream\n${content}\nendstream`,
+  ];
+  let out = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objects.forEach((object, i) => {
+    offsets.push(out.length);
+    out += `${String(i + 1)} 0 obj\n${object}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${String(objects.length + 1)}\n0000000000 65535 f \n`;
+  for (const offset of offsets) out += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  out += `trailer\n<< /Size ${String(objects.length + 1)} /Root 1 0 R >>\n`
+    + `startxref\n${String(xref)}\n%%EOF\n`;
+  return new TextEncoder().encode(out);
 }
 
 async function get<T>(path: string): Promise<T> {
@@ -421,64 +472,158 @@ async function main(): Promise<void> {
   ok('rungs 1, 2, 3 accepted in order');
 
   /* ---- sources and the evidence gate ---------------------------------- */
+  //
+  // Retrieval is real now, so the papers that come back are whatever OpenAlex
+  // has today. These checks are therefore about the property rather than the
+  // contents: what matters is that the access level tracks what we hold, and
+  // that the gate opens only for the levels that carry text. They pass
+  // identically on the offline fixture.
   console.log('\nsources');
-  const searched = await post<View>(`/projects/${id}/search`);
+  const searched = await post<SearchView>(`/projects/${id}/search`, {
+    query: 'generative AI literature synthesis graduate students conflicting sources',
+  });
   const sources = Object.values(searched.json.state.sources);
-  ok('search returned every access level', sources.map((s) => s.access).join(', '));
+  const passages = Object.values(searched.json.state.passages);
 
-  const openText = sources.find((s) => s.access === 'open_full_text');
-  const abstractOnly = sources.find((s) => s.access === 'abstract');
-  const metadataOnly = sources.find((s) => s.access === 'metadata');
-  if (!openText || !abstractOnly || !metadataOnly) {
-    bad('fixtures', 'missing an access level'); process.exit(1);
+  if (sources.length > 0) ok('search returned results', `${sources.length} via ${searched.json.source}`);
+  else { bad('search returned results', 'nothing at all'); process.exit(1); }
+
+  const byLevel = sources.reduce<Record<string, number>>(
+    (a, s2) => ({ ...a, [s2.access]: (a[s2.access] ?? 0) + 1 }), {},
+  );
+  ok('every result carries a level', JSON.stringify(byLevel));
+
+  // The property the whole slice turns on.
+  const heldWithoutText = sources.filter((s2) => {
+    const has = passages.some((p) => p.sourceId === s2.sourceId);
+    return (s2.access === 'open_full_text' || s2.access === 'user_upload') && !has;
+  });
+  if (heldWithoutText.length === 0) ok('no source claims text it does not have');
+  else bad('no source claims text it does not have', `${heldWithoutText.length} do`);
+
+  const textWithoutLevel = passages.filter((p) => {
+    const s2 = searched.json.state.sources[p.sourceId];
+    return s2 !== undefined && s2.access !== 'open_full_text' && s2.access !== 'user_upload';
+  });
+  if (textWithoutLevel.length === 0) ok('every held passage sits on a level that permits it');
+  else bad('every held passage sits on a permitted level', `${textWithoutLevel.length} do not`);
+
+  if (searched.json.source === 'openalex') {
+    ok('offered full text not claimed as held', `${searched.json.offeredButNotHeld} of ${searched.json.found}`);
   }
-  const passage = Object.values(searched.json.state.passages)
-    .find((p) => p.sourceId === openText.sourceId);
-  if (!passage) { bad('fixtures', 'no passage for the full-text source'); process.exit(1); }
+
+  // Searching the same question twice must not fill the panel with duplicates.
+  const again = await post<SearchView>(`/projects/${id}/search`, {
+    query: 'generative AI literature synthesis graduate students conflicting sources',
+  });
+  if (again.json.added === 0) ok('a repeated search adds nothing', `${again.json.found} found, 0 added`);
+  else bad('a repeated search adds nothing', `${again.json.added} added again`);
+
+  const gated = sources.find((s2) => s2.access === 'abstract' || s2.access === 'metadata');
+  if (gated === undefined) { bad('a gated source to test against', 'none returned'); process.exit(1); }
 
   console.log('\nevidence gate');
-  await refuse('evidence from an abstract-only source', id, 'student', 'evidence.created', {
-    objectId: uuid(), versionId: uuid(), sourceId: abstractOnly.sourceId, passageId: passage.passageId,
+
+  // Evidence needs a passage. A gated source has none, so there is nothing to
+  // cite even before the two written fields are considered.
+  const noPassage = await emit(id, 'student', 'evidence.created', {
+    objectId: uuid(), versionId: uuid(), sourceId: gated.sourceId, passageId: uuid(),
     interpretation: 'It shows effort fell.', warrant: 'Licenses a claim about effort.',
     position: { x: 700, y: 250 },
   });
+  if (noPassage.status === 422) ok('REFUSED evidence from a source with no passage', noPassage.json.invariant ?? '');
+  else bad('REFUSED evidence from a source with no passage', `status ${noPassage.status}`);
+
+  /* ---- the upload escape hatch ---------------------------------------- */
+  //
+  // Without this the gate would block every paywalled paper, so it ships with
+  // the slice rather than after it.
+  console.log('\nupload promotes a source');
+
+  const notAPdf = await postBytes(
+    `/projects/${id}/sources/${gated.sourceId}/upload`,
+    new TextEncoder().encode('this is not a pdf'),
+  );
+  if (notAPdf.status === 422) ok('REFUSED a file that is not a PDF', notAPdf.json.invariant ?? '');
+  else bad('REFUSED a file that is not a PDF', `status ${notAPdf.status}`);
+
+  const scan = await postBytes(`/projects/${id}/sources/${gated.sourceId}/upload`, textlessPdf());
+  if (scan.status === 422 && (scan.json.message ?? '').includes('no text layer')) {
+    ok('REFUSED a scan with no text layer', 'a source with no text cannot be promoted');
+  } else {
+    bad('REFUSED a scan with no text layer', `status ${scan.status}`);
+  }
+
+  const stillGated = await get<View>(`/projects/${id}`);
+  if (stillGated.state.sources[gated.sourceId]?.access === gated.access) {
+    ok('a refused upload leaves the level alone', gated.access);
+  } else {
+    bad('a refused upload leaves the level alone', 'the level moved anyway');
+  }
+
+  // The honest path when a PDF will not extract: the student types the quote.
+  const transcribed = await post<View>(
+    `/projects/${id}/sources/${gated.sourceId}/transcribe`,
+    {
+      text: 'Readers who summarised each source separately rarely surfaced contradictions between them.',
+      locator: 'p. 12, Findings',
+    },
+  );
+  if (transcribed.status !== 200) {
+    bad('transcribing a passage', `status ${transcribed.status} ${transcribed.json.message ?? ''}`);
+    process.exit(1);
+  }
+  const promoted = transcribed.json.state.sources[gated.sourceId];
+  const typed = Object.values(transcribed.json.state.passages)
+    .find((p) => p.sourceId === gated.sourceId);
+
+  if (promoted?.access === 'user_upload') ok('transcribing earns user_upload', gated.cite);
+  else bad('transcribing earns user_upload', `got ${promoted?.access}`);
+
+  if (typed?.provenance === 'student_transcribed') ok('and is recorded as the student\u2019s transcription');
+  else bad('provenance', `got ${typed?.provenance}`);
+
+  const tooShort = await post<View>(`/projects/${id}/sources/${gated.sourceId}/transcribe`, {
+    text: 'It says so.', locator: 'p. 1',
+  });
+  if (tooShort.status === 422) ok('REFUSED a summary in place of the sentences', tooShort.json.invariant ?? '');
+  else bad('REFUSED a summary in place of the sentences', `status ${tooShort.status}`);
+
+  const noLocator = await post<View>(`/projects/${id}/sources/${gated.sourceId}/transcribe`, {
+    text: 'Readers who summarised each source separately rarely surfaced contradictions.',
+    locator: '  ',
+  });
+  if (noLocator.status === 422) ok('REFUSED a passage nobody could find again', noLocator.json.invariant ?? '');
+  else bad('REFUSED a passage nobody could find again', `status ${noLocator.status}`);
+
+  console.log('\nevidence from what we now hold');
+  if (typed === undefined) { bad('a passage to cite', 'none'); process.exit(1); }
+
   await refuse('evidence with an empty warrant', id, 'student', 'evidence.created', {
-    objectId: uuid(), versionId: uuid(), sourceId: openText.sourceId, passageId: passage.passageId,
-    interpretation: 'It shows fewer hypotheses.', warrant: '   ',
+    objectId: uuid(), versionId: uuid(), sourceId: gated.sourceId, passageId: typed.passageId,
+    interpretation: 'Separate summaries hide contradictions.', warrant: '   ',
+    position: { x: 700, y: 250 },
+  });
+  await refuse('evidence with an empty interpretation', id, 'student', 'evidence.created', {
+    objectId: uuid(), versionId: uuid(), sourceId: gated.sourceId, passageId: typed.passageId,
+    interpretation: '  ', warrant: 'Licenses a claim about reading strategy.',
     position: { x: 700, y: 250 },
   });
 
   const evidence = uuid();
   const madeEvidence = await emit(id, 'student', 'evidence.created', {
-    objectId: evidence, versionId: uuid(), sourceId: openText.sourceId, passageId: passage.passageId,
-    interpretation: 'Generated examples narrowed the range of hypotheses students tried.',
-    warrant: 'This licenses a claim about variety, not about understanding.',
+    objectId: evidence, versionId: uuid(), sourceId: gated.sourceId, passageId: typed.passageId,
+    interpretation: 'Summarising sources one at a time hides the disagreements between them.',
+    warrant: 'Licenses a claim about reading strategy, not about capability.',
     position: { x: 700, y: 250 },
   });
-  if (madeEvidence.status === 200) ok('evidence from full text with both fields', openText.cite);
-  else bad('evidence from full text', `status ${madeEvidence.status} ${madeEvidence.json.message ?? ''}`);
+  if (madeEvidence.status === 200) ok('evidence once both fields are written', gated.cite);
+  else bad('evidence once both fields are written', `status ${madeEvidence.status} ${madeEvidence.json.message ?? ''}`);
 
   await emit(id, 'student', 'relation.created', {
     relationId: uuid(), from: evidence, to: claim, relation: 'supports',
   });
   ok('evidence wired to the claim', 'supports');
-
-  console.log('\nupload promotes a paywalled source');
-  await emit(id, 'student', 'source.uploaded', { sourceId: metadataOnly.sourceId });
-  const uploadedPassage = uuid();
-  await emit(id, 'coach', 'passage.captured', {
-    passageId: uploadedPassage, sourceId: metadataOnly.sourceId,
-    text: 'Gains under scaffolding persisted for procedural steps but not for reconciling sources.',
-    locator: 'p. 9', provenance: 'uploaded',
-  });
-  const fromUpload = await emit(id, 'student', 'evidence.created', {
-    objectId: uuid(), versionId: uuid(), sourceId: metadataOnly.sourceId, passageId: uploadedPassage,
-    interpretation: 'Scaffolded gains did not transfer to reconciling conflicting sources.',
-    warrant: 'Supports a narrow claim about transfer, not about all reasoning.',
-    position: { x: 980, y: 250 },
-  });
-  if (fromUpload.status === 200) ok('upload then evidence', metadataOnly.cite);
-  else bad('upload then evidence', `status ${fromUpload.status} ${fromUpload.json.message ?? ''}`);
 
   /* ---- identity across a checkpoint ----------------------------------- */
   console.log('\ncheckpoint and feedback');

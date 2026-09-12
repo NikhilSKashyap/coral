@@ -5,4 +5,5 @@ export * from './invariants.js';
 export * from './state.js';
 export * from './selectors.js';
 export * from './spine.js';
+export * from './holdings.js';
 export * from './metrics.js';

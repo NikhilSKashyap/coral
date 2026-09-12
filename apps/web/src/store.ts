@@ -7,8 +7,10 @@ import {
 } from '@coral/core';
 import {
   Refused, acceptProposal, askCoach, createProject, dismissProposal, draftFrame, emit,
-  listProjects, listProviders, loadDrift, loadProject, searchLiterature, writeStage,
+  listProjects, listProviders, loadDrift, loadProject, retrievalStatus, searchLiterature,
+  transcribePassage, uploadPaper, writeStage,
   type CoachResponse, type Drift, type ProjectSummary, type ProviderId, type ProviderStatus,
+  type SearchResult,
 } from './api.js';
 
 export type View = 'frame' | 'map' | 'focus';
@@ -40,7 +42,12 @@ interface Studio {
   newProject: (title: string, group: string) => Promise<void>;
   open: (id: ProjectId) => Promise<void>;
   write: (actor: Actor, type: DomainEvent['type'], payload: unknown) => Promise<boolean>;
-  search: () => Promise<void>;
+  search: (query?: string) => Promise<void>;
+  lastSearch: SearchResult | null;
+  fullTextAvailable: boolean | null;
+  refreshRetrieval: () => Promise<void>;
+  uploadPaper: (sourceId: string, file: File) => Promise<boolean>;
+  transcribe: (sourceId: string, text: string, locator: string) => Promise<boolean>;
   select: (id: ObjectId | null) => void;
   setView: (view: View) => void;
   setRole: (role: Actor) => void;
@@ -64,6 +71,8 @@ export const useStudio = create<Studio>((set, get) => ({
   role: 'student',
   busy: false,
   refusal: null,
+  lastSearch: null,
+  fullTextAvailable: null,
 
   refreshProjects: async () => {
     const { projects } = await listProjects();
@@ -244,12 +253,81 @@ export const useStudio = create<Studio>((set, get) => ({
     }
   },
 
-  search: async () => {
+  /**
+   * Literature search.
+   *
+   * An empty query means the project's own research question, which is almost
+   * always what a student wants on the first press.
+   */
+  search: async (query) => {
     const { projectId } = get();
     if (projectId === null) return;
-    set({ busy: true });
-    const view = await searchLiterature(projectId);
-    set({ state: view.state, events: view.events, record: view.record, busy: false });
+    set({ busy: true, refusal: null });
+    try {
+      const view = await searchLiterature(projectId, query);
+      set({
+        state: view.state, events: view.events, record: view.record,
+        lastSearch: view, busy: false,
+      });
+    } catch (error) {
+      set({
+        refusal: {
+          invariant: error instanceof Refused ? error.invariant : 'retrieval',
+          message: error instanceof Error ? error.message : String(error),
+        },
+        busy: false,
+      });
+    }
+  },
+
+  refreshRetrieval: async () => {
+    try {
+      const { fullText } = await retrievalStatus();
+      set({ fullTextAvailable: fullText });
+    } catch {
+      set({ fullTextAvailable: false });
+    }
+  },
+
+  /** Drop a PDF on a source. A scan with no text layer is refused, not promoted. */
+  uploadPaper: async (sourceId, file) => {
+    const { projectId } = get();
+    if (projectId === null) return false;
+    set({ busy: true, refusal: null });
+    try {
+      const view = await uploadPaper(projectId, sourceId, file);
+      set({ state: view.state, events: view.events, record: view.record, busy: false });
+      return true;
+    } catch (error) {
+      set({
+        refusal: {
+          invariant: error instanceof Refused ? error.invariant : 'upload',
+          message: error instanceof Error ? error.message : String(error),
+        },
+        busy: false,
+      });
+      return false;
+    }
+  },
+
+  transcribe: async (sourceId, text, locator) => {
+    const { projectId } = get();
+    if (projectId === null) return false;
+    set({ busy: true, refusal: null });
+    try {
+      const view = await transcribePassage(projectId, sourceId, { text, locator });
+      set({ state: view.state, events: view.events, record: view.record, busy: false });
+      return true;
+    } catch (error) {
+      set({
+        refusal: {
+          invariant: error instanceof Refused ? error.invariant : 'upload',
+          message: error instanceof Error ? error.message : String(error),
+        },
+        busy: false,
+      });
+      return false;
+    }
   },
 
   select: (id) => set({ selected: id, refusal: null }),

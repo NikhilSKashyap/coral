@@ -95,8 +95,52 @@ export const draftFrame = (
   answers: Record<string, string>,
 ): Promise<ProjectView> => call(`/projects/${id}/frame`, json({ answers }));
 
-export const searchLiterature = (id: ProjectId): Promise<ProjectView> =>
-  call(`/projects/${id}/search`, { method: 'POST' });
+export interface SearchResult extends ProjectView {
+  query: string;
+  source: 'openalex' | 'fixture';
+  reason?: string;
+  found: number;
+  added: number;
+  /** Results whose publisher offers full text that we did not manage to hold. */
+  offeredButNotHeld: number;
+}
+
+/** Real retrieval, with the fixture as the floor. An empty query uses the question. */
+export const searchLiterature = (id: ProjectId, query?: string): Promise<SearchResult> =>
+  call(`/projects/${id}/search`, json({ query: query ?? '' }));
+
+export const retrievalStatus = (): Promise<{ fullText: boolean; detail: string }> =>
+  call('/retrieval');
+
+/**
+ * Post a PDF as its own bytes.
+ *
+ * Not multipart: the File goes straight into the body, which is what the server
+ * parses. A refusal here is a 422 like any other, and the common one is a scan
+ * with no text layer.
+ */
+export const uploadPaper = async (
+  id: ProjectId,
+  sourceId: string,
+  file: File,
+): Promise<ProjectView> => {
+  const res = await fetch(`${BASE}/projects/${id}/sources/${sourceId}/upload`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/pdf' },
+    body: file,
+  });
+  const body = (await res.json()) as ProjectView & { invariant?: string; message?: string };
+  if (res.status === 422) throw new Refused(body.invariant ?? 'unknown', body.message ?? 'Refused');
+  if (!res.ok) throw new Error(body.message ?? `Upload failed (${String(res.status)})`);
+  return body;
+};
+
+export const transcribePassage = (
+  id: ProjectId,
+  sourceId: string,
+  body: { text: string; locator: string },
+): Promise<ProjectView> =>
+  call(`/projects/${id}/sources/${sourceId}/transcribe`, json(body));
 
 export interface Drift {
   commentId: string;
