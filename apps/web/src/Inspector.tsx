@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  RELATIONS, THOUGHT_TYPES, canBackEvidence, coachMoves, diffSinceReview, hintLevelFor,
-  liveThoughts, openProposals,
+  RELATIONS, THOUGHT_TYPES, canBackEvidence, coachMoves, diffSinceReview, evidencePanel,
+  hintLevelFor, liveThoughts, openProposals, thinkingTimeline,
   type CommentId, type ObjectId, type PassageId, type Proposal,
   type Relation, type RelationId, type SnapshotId, type Source, type ThoughtType,
   type VersionId,
@@ -48,16 +48,10 @@ export default function Inspector() {
         <div className="pad divide">
           <span className="eyebrow">Observable record</span>
           <p className="empty" style={{ marginTop: -4 }}>
-            Counts of things that happened. No score, no judgment about the student.
+            Counts of things that happened. No score, no judgment about the student. Open any
+            figure to see the objects behind it.
           </p>
-          <dl className="kvs">
-            {Object.entries(record).map(([k, v]) => (
-              <div key={k} style={{ display: 'contents' }}>
-                <dt>{k.replace(/([A-Z])/g, ' $1').toLowerCase()}</dt>
-                <dd style={{ color: v > 0 ? 'var(--text)' : 'var(--text-3)' }}>{v}</dd>
-              </div>
-            ))}
-          </dl>
+          <EvidencePanel />
         </div>
       )}
     </aside>
@@ -794,6 +788,17 @@ function ReviewTab() {
       )}
 
       {role === 'instructor' && (
+        <div className="divide" style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span className="eyebrow">Thinking evolution</span>
+          <p className="empty" style={{ marginTop: -4 }}>
+            What the student did, in order. The coach&rsquo;s own moves are left out: this is a
+            record of their work, not of what they were told.
+          </p>
+          <Timeline />
+        </div>
+      )}
+
+      {role === 'instructor' && (
         <CourseBlock
           assignments={assignments}
           attached={mine !== undefined}
@@ -1027,6 +1032,127 @@ function CourseBlock({
       ) : (
         <button className="btn ghost" onClick={() => setOpen(true)}>New assignment</button>
       )}
+    </div>
+  );
+}
+
+/**
+ * The instructor's evidence panel.
+ *
+ * A number nobody can open is a score with extra steps, so every figure here
+ * expands to the objects behind it and every object opens. The note under each
+ * one says what is being counted, because a count without its definition is an
+ * impression.
+ */
+function EvidencePanel() {
+  const state = useStudio((s) => s.state);
+  const events = useStudio((s) => s.events);
+  const select = useStudio((s) => s.select);
+  const setView = useStudio((s) => s.setView);
+
+  const [open, setOpen] = useState<string | null>(null);
+  const panel = evidencePanel(state, events);
+
+  return (
+    <div className="rows">
+      {panel.map((item) => {
+        const openable = item.objectIds.length > 0 || item.sourceIds.length > 0;
+        return (
+          <div key={item.id} className="row">
+            <button
+              className="hd"
+              style={{ width: '100%', textAlign: 'left', cursor: openable ? 'pointer' : 'default' }}
+              onClick={() => openable && setOpen(open === item.id ? null : item.id)}
+            >
+              <span style={{ fontSize: 12.5 }}>{item.label}</span>
+              <span
+                className="mono"
+                style={{
+                  fontVariantNumeric: 'tabular-nums',
+                  color: item.value > 0 ? 'var(--text)' : 'var(--text-3)',
+                }}
+              >
+                {item.value}
+              </span>
+            </button>
+
+            {open === item.id && (
+              <>
+                <p style={{ color: 'var(--text-3)' }}>{item.note}</p>
+                {item.objectIds.map((objectId) => {
+                  const thought = state.thoughts[objectId];
+                  if (thought === undefined) return null;
+                  return (
+                    <button
+                      key={objectId}
+                      style={{ textAlign: 'left', fontSize: 12, display: 'block', width: '100%' }}
+                      onClick={() => { select(objectId); setView('focus'); }}
+                    >
+                      <span className="eyebrow" style={{ color: 'var(--ext)', marginRight: 6 }}>
+                        {thought.type.toLowerCase()}
+                      </span>
+                      {thought.text.slice(0, 72)}{thought.text.length > 72 ? '…' : ''}
+                    </button>
+                  );
+                })}
+                {item.sourceIds.map((sourceId) => (
+                  <p key={sourceId} style={{ fontSize: 12 }}>
+                    <span className="eyebrow" style={{ color: 'var(--ext)', marginRight: 6 }}>source</span>
+                    {state.sources[sourceId]?.cite ?? sourceId}
+                  </p>
+                ))}
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * How the reasoning moved, in order.
+ *
+ * Kept to the events that changed the shape of the argument. The coach's own
+ * moves are deliberately absent: a timeline padded with prompts reads as a
+ * record of what the student was told rather than what they did.
+ */
+export function Timeline() {
+  const state = useStudio((s) => s.state);
+  const events = useStudio((s) => s.events);
+  const select = useStudio((s) => s.select);
+  const setView = useStudio((s) => s.setView);
+
+  const milestones = thinkingTimeline(state, events);
+  if (milestones.length === 0) {
+    return <p className="empty">Nothing has changed the shape of the argument yet.</p>;
+  }
+
+  return (
+    <div className="spine">
+      {milestones.map((m) => (
+        <div key={`${String(m.seq)}-${m.kind}`} className="row">
+          <div className="hd">
+            <span className="eyebrow" style={{ color: 'var(--brand)' }}>{m.kind}</span>
+            <span className="mono" style={{ fontSize: 10, color: 'var(--text-3)' }}>
+              {new Date(m.at).toLocaleTimeString()}
+            </span>
+          </div>
+          <p style={{ color: 'var(--text-2)' }}>{m.label}</p>
+          {m.quote !== null && (
+            m.objectId === null ? (
+              <p style={{ fontSize: 12.5 }}>&ldquo;{m.quote}&rdquo;</p>
+            ) : (
+              <button
+                style={{ textAlign: 'left', fontSize: 12.5, display: 'block', width: '100%' }}
+                onClick={() => { select(m.objectId as ObjectId); setView('focus'); }}
+              >
+                &ldquo;{m.quote.slice(0, 110)}{m.quote.length > 110 ? '…' : ''}&rdquo;
+              </button>
+            )
+          )}
+        </div>
+      ))}
     </div>
   );
 }

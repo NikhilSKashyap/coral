@@ -57,7 +57,10 @@ interface Studio {
   lastScan: ScanResult | null;
   brief: Brief | null;
   omitted: Thought[];
-  refreshBrief: () => Promise<void>;
+  checkpoints: Array<{ snapshotId: string; at: string; entries: number }>;
+  /** Which checkpoint the brief is being read as of, or null for live state. */
+  briefAsOf: string | null;
+  refreshBrief: (snapshotId?: string | null) => Promise<void>;
   dismissProposal: (proposalId: ProposalId) => Promise<boolean>;
   draftFrame: (answers: Record<string, string>) => Promise<boolean>;
   newProject: (title: string, group: string) => Promise<void>;
@@ -99,6 +102,8 @@ export const useStudio = create<Studio>((set, get) => ({
   progress: [],
   brief: null,
   omitted: [],
+  checkpoints: [],
+  briefAsOf: null,
   fullTextAvailable: null,
 
   refreshProjects: async () => {
@@ -365,15 +370,26 @@ export const useStudio = create<Studio>((set, get) => ({
     }
   },
 
-  /** Assembled server-side, so the browser cannot drift from what a checkpoint would freeze. */
-  refreshBrief: async () => {
-    const { projectId } = get();
+  /**
+   * Assembled server-side, so the browser cannot drift from what a checkpoint
+   * would freeze.
+   *
+   * Passing a checkpoint assembles the brief as it stood when that was
+   * submitted — the document an instructor is actually reviewing, rather than
+   * whatever the student has written since.
+   */
+  refreshBrief: async (snapshotId) => {
+    const { projectId, briefAsOf } = get();
     if (projectId === null) return;
+    const wanted = snapshotId === undefined ? briefAsOf : snapshotId;
     try {
-      const { brief, omitted } = await loadBrief(projectId);
-      set({ brief, omitted });
+      const view = await loadBrief(projectId, wanted ?? undefined);
+      set({
+        brief: view.brief, omitted: view.omitted,
+        checkpoints: view.checkpoints, briefAsOf: view.asOf,
+      });
     } catch {
-      set({ brief: null, omitted: [] });
+      set({ brief: null, omitted: [], checkpoints: [], briefAsOf: null });
     }
   },
 

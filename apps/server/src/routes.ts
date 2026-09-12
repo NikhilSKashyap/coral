@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import {
-  EVENT_TYPES, RELATIONS, SOURCE_ACCESS, THOUGHT_TYPES, assembleBrief, commentDrift,
-  omittedFrom,
-  type AssignmentId, type CommentId, type ProjectId, type ProposalId, type SourceId,
+  EVENT_TYPES, RELATIONS, SOURCE_ACCESS, THOUGHT_TYPES, assembleBrief, checkpointsOf,
+  commentDrift, omittedFrom, stateAtCheckpoint,
+  type AssignmentId, type CommentId, type ProjectId, type ProposalId, type SnapshotId,
+  type SourceId,
 } from '@coral/core';
 import { coach, detectProviders, type CoachRequestBody } from './coach.js';
 import { StageOutOfOrder, draftProblemFrame, writeStage, type StageWriteBody } from './spine.js';
@@ -213,12 +214,37 @@ export async function routes(app: FastifyInstance): Promise<void> {
     async (request) => scan(request.params.id as ProjectId, request.body ?? {}),
   );
 
-  /** The Reasoning Brief, assembled from objects that already exist. */
-  app.get<{ Params: { id: string } }>('/projects/:id/brief', async (request) => {
-    const view = await loadProject(request.params.id as ProjectId);
-    const brief = assembleBrief(view.state);
-    return { brief, omitted: omittedFrom(view.state, brief) };
-  });
+  /**
+   * The Reasoning Brief, assembled from objects that already exist.
+   *
+   * `?snapshot=` assembles it as of a checkpoint instead of from live state,
+   * which is the document an instructor is actually reviewing. Without it a
+   * student who has revised since is defended by text nobody read.
+   */
+  app.get<{ Params: { id: string }; Querystring: { snapshot?: string } }>(
+    '/projects/:id/brief',
+    async (request, reply) => {
+      const projectId = request.params.id as ProjectId;
+      const view = await loadProject(projectId);
+      const wanted = request.query.snapshot ?? '';
+
+      const state = wanted === ''
+        ? view.state
+        : stateAtCheckpoint(projectId, view.events, wanted as SnapshotId);
+
+      if (state === undefined) {
+        return reply.status(404).send({ invariant: null, message: `unknown checkpoint ${wanted}` });
+      }
+
+      const brief = assembleBrief(state);
+      return {
+        brief,
+        omitted: omittedFrom(state, brief),
+        checkpoints: checkpointsOf(view.state),
+        asOf: wanted === '' ? null : wanted,
+      };
+    },
+  );
 
   /* ---- the instructor's side -------------------------------------- */
 

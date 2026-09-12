@@ -34,9 +34,9 @@ Open http://localhost:5173, press **New question**, and build a map.
 ## Testing it
 
 ```bash
-pnpm test                                   # 154 unit tests: 111 over the invariants, 43 over the agent boundary
+pnpm test                                   # 172 unit tests: 129 over the invariants, 43 over the agent boundary
 pnpm --filter @coral/server test:db        # the five guards Postgres enforces
-pnpm --filter @coral/server test:e2e       # 124 checks over a whole session
+pnpm --filter @coral/server test:e2e       # 130 checks over a whole session
 pnpm --filter @coral/server probe "a query" # what retrieval returns, and at what level
 ```
 
@@ -89,6 +89,42 @@ slice: the ladder either teaches before it costs anything, or it does not teach.
 - The **Problem Frame** is a template fill over objects that already exist. The
   question is your thought word for word, and a refinement prompt you did not
   answer stays a gap rather than becoming prose.
+
+## The brief you review is the one that was submitted
+
+A brief assembled from live state is the wrong document. The instructor
+commented on what was handed in; a student who has revised since would be
+defended by text nobody read. So the Brief has a **Read it as of** selector, and
+`stateAtCheckpoint` reconstructs the project as it stood when a checkpoint was
+submitted — no cloning, just the log replayed to that event and restricted to
+the pairs the snapshot froze.
+
+Work the student deliberately held back is not in it either. A brief showing
+what was not submitted would be handing the instructor something that was never
+handed in.
+
+## A number nobody can open is a score with extra steps
+
+The instructor's panel reports counts, and every one of them expands to the
+objects behind it:
+
+```
+Times the student asked for more help                    3
+  Support climbs a rung only when asked. This counts the asking,
+  not the needing.
+  TENSION  Performance increases, but independent learning may not.
+```
+
+The note under each figure says what is being counted, because a count without
+its definition is an impression. Alongside it, the **Thinking evolution** is the
+log replayed down to the moves that changed the shape of the argument, quoting
+the student rather than paraphrasing them. The coach's own moves are left out
+deliberately: a timeline padded with prompts reads as a record of what the
+student was told rather than what they did.
+
+Nothing in the panel infers anything. A test asserts that no figure's id, label
+or note can be read as a score, because this is the one place in the product
+where a grade would feel natural.
 
 ## A comment is closed by a revision, not by agreeing with it
 
@@ -388,7 +424,7 @@ system implies text it never retrieved has nowhere to live.
 | `POST /projects/:id/coach` | one move from the student's own agent, written through the guards |
 | `POST /projects/:id/detect` | which of the student's thoughts already read as claims |
 | `POST /projects/:id/scan` | gaps the graph can prove, plus contradictions if a model can look |
-| `GET /projects/:id/brief` | the Reasoning Brief, assembled from existing objects |
+| `GET /projects/:id/brief` | the Reasoning Brief; `?snapshot=` reads it as of a checkpoint |
 | `GET` `POST /assignments` | list and author assignments |
 | `GET /dashboard` | progress at checkpoint level, each project against its own assignment |
 | `POST /projects/:id/assignment` | point a project at an assignment |
@@ -463,14 +499,25 @@ progress at checkpoint level with every figure a count or a date. The resolve
 loop closed: a student ends a comment by naming the version that answers it, and
 cannot end one by agreeing with it.
 
-**Next.** Slice 07 is the evidence panel — the counts already exist in
-`observableRecord` and are rendered in the sidebar, so what remains is making
-every number link to the objects behind it, and the thinking-evolution timeline
-over the log.
+**Done (slice 07).** The evidence panel. Every count opens to the objects behind
+it, each carries a note saying what it counts, and the thinking-evolution
+timeline replays the log down to the moves that changed the argument. Fixed
+along the way: the brief could only be assembled from live state, so an
+instructor reviewing a checkpoint was reading a document the student had since
+rewritten.
 
-Also outstanding from earlier slices: the three seats are still fixed rows, so
-there is no auth and one student. That is the next real piece of infrastructure
-rather than a slice.
+**The plan is finished.** All eight slices are in, and the seven invariants hold
+across `packages/core`, the Postgres triggers, and 302 tests.
+
+**What is not finished.** The three seats are still fixed rows — one student,
+one instructor, one coach, as hard-coded UUIDs — so nobody else can use this.
+That is infrastructure rather than a slice, and it is what stands between Coral
+and a real student. The Codex adapter remains unverified, since Codex is not
+installed here.
+
+And the thing the build order itself asked for has not happened: *put it in
+front of students and watch where they stall.* Everything verified here was
+verified by building it.
 
 Known gaps: there is no auth, and the three seats are fixed rows. The Codex
 adapter is written but still unverified, since Codex is not installed here.

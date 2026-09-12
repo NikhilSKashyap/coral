@@ -137,9 +137,17 @@ export const scanMap = (id: ProjectId, provider?: ProviderId): Promise<ScanResul
   call(`/projects/${id}/scan`, json({ provider }));
 
 /** The brief, assembled server-side from objects that already exist. */
-export const loadBrief = (
-  id: ProjectId,
-): Promise<{ brief: Brief; omitted: Thought[] }> => call(`/projects/${id}/brief`);
+export interface BriefView {
+  brief: Brief;
+  omitted: Thought[];
+  checkpoints: Array<{ snapshotId: string; at: string; entries: number }>;
+  /** The checkpoint this was assembled as of, or null for live state. */
+  asOf: string | null;
+}
+
+/** `snapshotId` assembles the brief as it stood when that checkpoint was submitted. */
+export const loadBrief = (id: ProjectId, snapshotId?: string): Promise<BriefView> =>
+  call(`/projects/${id}/brief${snapshotId === undefined ? '' : `?snapshot=${snapshotId}`}`);
 
 export interface Assignment {
   assignmentId: string;

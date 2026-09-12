@@ -10,4 +10,6 @@ export * from './diff.js';
 export * from './gaps.js';
 export * from './brief.js';
 export * from './requirements.js';
+export * from './snapshot.js';
+export * from './panel.js';
 export * from './metrics.js';

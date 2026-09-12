@@ -22,6 +22,8 @@ export default function BriefView() {
   const lastScan = useStudio((s) => s.lastScan);
   const busy = useStudio((s) => s.busy);
   const state = useStudio((s) => s.state);
+  const checkpoints = useStudio((s) => s.checkpoints);
+  const briefAsOf = useStudio((s) => s.briefAsOf);
 
   useEffect(() => { void refreshBrief(); }, [refreshBrief, state.seq]);
 
@@ -51,6 +53,38 @@ export default function BriefView() {
           thought you wrote, a passage that was retrieved, or a source you saved. Where there is
           nothing behind a section, it says so.
         </p>
+
+        {/*
+          A brief read from live state is the wrong document to review: an
+          instructor commented on what was handed in, and a student who has
+          revised since would be defended by text nobody read.
+        */}
+        {checkpoints.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label className="lbl" style={{ flex: 1, minWidth: 200 }}>
+              <span className="eyebrow">Read it as of</span>
+              <select
+                className="field"
+                value={briefAsOf ?? ''}
+                onChange={(e) => void refreshBrief(e.target.value === '' ? null : e.target.value)}
+              >
+                <option value="">Now, with everything written since</option>
+                {checkpoints.map((c, i) => (
+                  <option key={c.snapshotId} value={c.snapshotId}>
+                    Checkpoint {i + 1} · {new Date(c.at).toLocaleString()} · {c.entries} frozen
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
+
+        {briefAsOf !== null && (
+          <span className="empty" style={{ color: 'var(--brand)' }}>
+            This is what was submitted, not what is on the map now. Nothing written since appears
+            here.
+          </span>
+        )}
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn" disabled={busy} onClick={() => void scan()}>

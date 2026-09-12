@@ -101,6 +101,8 @@ interface BriefLineShape {
 }
 
 interface BriefView {
+  asOf: string | null;
+  checkpoints: Array<{ snapshotId: string; at: string; entries: number }>;
   brief: {
     question: string | null;
     sections: Array<{ id: string; title: string; gap: boolean; gapPrompt: string; lines: BriefLineShape[] }>;
@@ -820,6 +822,79 @@ async function instructorReview(): Promise<void> {
   }
 }
 
+
+/**
+ * The brief as of a checkpoint, and the evidence panel, slice 07.
+ *
+ * A brief read from live state is the wrong document to review: the instructor
+ * commented on what was handed in, and a student who has revised since would be
+ * defended by text nobody read.
+ */
+async function reviewAsSubmitted(): Promise<void> {
+  console.log('\nthe brief as it was submitted');
+  const created = await post<View>('/projects', {
+    title: 'AI and independent reasoning', group: 'AI & Learning',
+  });
+  const id = created.json.projectId;
+
+  const claim = uuid();
+  const v1 = uuid();
+  const submittedText = 'Drafting with AI narrows the hypotheses students try.';
+  await emit(id, 'student', 'thought.created', {
+    objectId: claim, versionId: v1, type: 'CLAIM',
+    text: submittedText, note: '', position: { x: 0, y: 0 },
+  });
+
+  // Work the student is not ready to show.
+  const held = uuid();
+  await emit(id, 'student', 'thought.created', {
+    objectId: held, versionId: uuid(), type: 'CLAIM',
+    text: 'A half-finished claim I am holding back.', note: '', position: { x: 0, y: 0 },
+  });
+
+  const snapshot = uuid();
+  await emit(id, 'student', 'checkpoint.submitted', {
+    snapshotId: snapshot, assignmentId: null,
+    entries: [{ objectId: claim, versionId: v1 }],
+  });
+
+  // ... and then they keep working.
+  await emit(id, 'student', 'thought.revised', {
+    objectId: claim, versionId: uuid(), parentVersionId: v1,
+    text: 'Early drafting with AI narrows the framings graduate students reach unaided.',
+    note: '',
+  });
+
+  const live = await get<BriefView>(`/projects/${id}/brief`);
+  const asOf = await get<BriefView>(`/projects/${id}/brief?snapshot=${snapshot}`);
+
+  const liveClaim = live.brief.sections.find((s) => s.id === 'claims')?.lines[0]?.text;
+  const thenClaim = asOf.brief.sections.find((s) => s.id === 'claims')?.lines[0]?.text;
+
+  if (thenClaim === submittedText) ok('the checkpoint brief shows the words that were handed in');
+  else bad('the checkpoint brief', `got "${thenClaim ?? ''}"`);
+
+  if (liveClaim !== submittedText) ok('the live brief has moved on', 'they are different documents');
+  else bad('the live brief', 'it did not move on');
+
+  const thenLines = asOf.brief.sections.find((s) => s.id === 'claims')?.lines ?? [];
+  if (thenLines.length === 1) ok('work held back is not in the submitted brief', '1 of 2 claims');
+  else bad('held-back work', `${thenLines.length} claims appeared`);
+
+  if (asOf.asOf === snapshot && live.asOf === null) ok('each brief says which it is');
+  else bad('asOf', `${String(asOf.asOf)} / ${String(live.asOf)}`);
+
+  if (asOf.checkpoints.length === 1) ok('the checkpoints are listed to choose between');
+  else bad('checkpoints listed', `${asOf.checkpoints.length}`);
+
+  const missing = await get<{ message?: string }>(`/projects/${id}/brief?snapshot=${uuid()}`);
+  if ((missing.message ?? '').includes('unknown checkpoint')) {
+    ok('an unknown checkpoint is refused rather than silently falling back to live');
+  } else {
+    bad('unknown checkpoint', JSON.stringify(missing).slice(0, 60));
+  }
+}
+
 async function main(): Promise<void> {
   console.log(`\ncoral end-to-end  ${BASE}\n`);
 
@@ -828,6 +903,7 @@ async function main(): Promise<void> {
   await claimsAndVersions();
   await synthesisAndBrief();
   await instructorReview();
+  await reviewAsSubmitted();
 
 
   console.log('project');
