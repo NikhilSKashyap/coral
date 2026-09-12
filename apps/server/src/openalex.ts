@@ -1,3 +1,4 @@
+import { gunzipSync } from 'node:zlib';
 import { abstractFromInvertedIndex, accessFrom, type SourceAccess } from '@coral/core';
 
 /**
@@ -188,13 +189,13 @@ export async function firstParagraph(
   if (key === undefined || workId === '') return null;
 
   const id = workId.replace(/^https?:\/\/openalex\.org\//, '');
-  const res = await fetch(`${CONTENT}/works/${id}.grobid-xml?api_key=${encodeURIComponent(key)}`, {
-    headers: { 'user-agent': UA },
+  const res = await fetch(`${CONTENT}/works/${id}.grobid-xml`, {
+    headers: { 'user-agent': UA, authorization: `Bearer ${key}` },
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) return null;
 
-  const xml = await res.text();
+  const xml = decompress(new Uint8Array(await res.arrayBuffer()));
   const body = xml.slice(xml.indexOf('<body'));
 
   // Walk divs so a paragraph keeps the heading above it.
@@ -203,8 +204,7 @@ export async function firstParagraph(
     const heading = strip(/<head[^>]*>([\s\S]*?)<\/head>/.exec(div)?.[1] ?? '');
     for (const match of div.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/g)) {
       const text = strip(match[1] ?? '');
-      // Short paragraphs are captions, affiliations and page furniture.
-      if (text.length < 160) continue;
+      if (!quotable(text)) continue;
       return {
         text: text.slice(0, 1200),
         locator: heading === '' ? 'body text' : heading.slice(0, 80),
@@ -212,6 +212,47 @@ export async function firstParagraph(
     }
   }
   return null;
+}
+
+/**
+ * Is this paragraph worth offering as a passage?
+ *
+ * GROBID keeps front matter in the body: author lists, affiliations, funding
+ * notes and copyright blocks all arrive as long paragraphs under a real heading.
+ * Offering one as the quotable passage is not dishonest, but it is useless — a
+ * student cannot build evidence on a list of email addresses.
+ *
+ * The tests are for prose rather than for topic: contact details, a high density
+ * of capitalised tokens (which is what a byline looks like), and text with no
+ * sentence in it are all skipped. A fragment that starts mid-sentence is skipped
+ * too, since a quote that begins in the middle of a clause reads as a misquote.
+ */
+function quotable(text: string): boolean {
+  if (text.length < 220) return false;
+  if (text.includes('@')) return false;
+  // Real prose contains sentences.
+  if ((text.match(/[.?!]\s+[A-Z]/g) ?? []).length < 2) return false;
+  // A byline or affiliation block is mostly capitalised tokens.
+  const words = text.split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
+  if (words.length < 40) return false;
+  const capitalised = words.filter((w) => /^[A-Z]/.test(w)).length;
+  if (capitalised / words.length > 0.3) return false;
+  // Starts mid-sentence.
+  if (!/^[A-Z"'(\u201c]/.test(text)) return false;
+  return true;
+}
+
+/**
+ * The content endpoint serves a gzip *file*, not a gzip-encoded response.
+ *
+ * `content-type: application/gzip` with no `content-encoding`, so fetch does not
+ * unwrap it and `res.text()` yields binary. Sniffing the magic bytes rather than
+ * trusting the header means a future switch to plain XML keeps working.
+ */
+function decompress(bytes: Uint8Array): string {
+  const gzipped = bytes[0] === 0x1f && bytes[1] === 0x8b;
+  const raw = gzipped ? gunzipSync(bytes) : bytes;
+  return new TextDecoder('utf-8').decode(raw);
 }
 
 /** XML to plain text. Entities that matter in prose, tags dropped. */

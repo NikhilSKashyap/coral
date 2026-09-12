@@ -120,7 +120,20 @@ printf 'OPENALEX_API_KEY=%s\n' 'your-key' >> .env
 ```
 
 The server loads `.env` with `--env-file-if-exists`, so a clone without one still
-starts and simply never claims `open_full_text`.
+starts and simply never claims `open_full_text`. With a key set, the same query
+reads:
+
+```
+levels: {"open_full_text":5,"abstract":1}
+offered but not held: 0
+```
+
+The one that stayed at `abstract` is the one OpenAlex holds no text for.
+
+The passage a search captures is the first quotable paragraph under a section
+heading — front matter, bylines and mid-sentence fragments are skipped. It is a
+starting point rather than the quote the student wants, and picking the passage
+properly belongs to them; **Type a passage** already covers that case.
 
 **Two ways past the gate, and both are the student's.** *Upload the paper* takes
 a PDF as its own bytes, extracts the text, and promotes the source. A file that

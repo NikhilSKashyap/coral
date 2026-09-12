@@ -519,8 +519,21 @@ async function main(): Promise<void> {
   if (again.json.added === 0) ok('a repeated search adds nothing', `${again.json.found} found, 0 added`);
   else bad('a repeated search adds nothing', `${again.json.added} added again`);
 
-  const gated = sources.find((s2) => s2.access === 'abstract' || s2.access === 'metadata');
-  if (gated === undefined) { bad('a gated source to test against', 'none returned'); process.exit(1); }
+  // A source the gate is closed on, minted rather than hoped for.
+  //
+  // Whether search returns one depends on the day's results and on whether a
+  // content key is set — with one, everything can arrive at open_full_text. The
+  // upload path must be tested either way, so the fixture for it is explicit.
+  const gatedId = uuid();
+  await emit(id, 'coach', 'source.discovered', {
+    sourceId: gatedId, access: 'metadata',
+    cite: 'Marek, 2026', title: 'Transfer After Scaffolded Analysis',
+    method: 'Longitudinal', abstract: null, externalUrl: null, doi: null,
+  });
+  const withGated = await get<View>(`/projects/${id}`);
+  const gated = withGated.state.sources[gatedId];
+  if (gated === undefined) { bad('a gated source to test against', 'could not create one'); process.exit(1); }
+  ok('a source the gate is closed on', `${gated.cite} at ${gated.access}`);
 
   console.log('\nevidence gate');
 
