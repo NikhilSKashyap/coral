@@ -110,10 +110,17 @@ levels: {"abstract":8}
 offered but not held: 8
 ```
 
-Eight papers whose publishers offer full text; none of them promoted. Set
-`OPENALEX_API_KEY` (free, from openalex.org/users) and OpenAlex's own structured
-text becomes reachable, so a passage arrives with the section heading it sat
-under — which is what makes a locator findable again.
+Eight papers whose publishers offer full text; none of them promoted. Set `OPENALEX_API_KEY` in `.env` (free, from openalex.org/users) and OpenAlex's
+own structured text becomes reachable, so a passage arrives with the section
+heading it sat under — which is what makes a locator findable again.
+
+```bash
+cp -n .env.example .env
+printf 'OPENALEX_API_KEY=%s\n' 'your-key' >> .env
+```
+
+The server loads `.env` with `--env-file-if-exists`, so a clone without one still
+starts and simply never claims `open_full_text`.
 
 **Two ways past the gate, and both are the student's.** *Upload the paper* takes
 a PDF as its own bytes, extracts the text, and promotes the source. A file that
