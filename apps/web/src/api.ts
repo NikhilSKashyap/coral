@@ -1,6 +1,6 @@
 import type {
-  Actor, DomainEvent, ObservableRecord, ProjectId, ProjectState, ProposalId,
-  Relation, SpineStage,
+  Actor, Brief, DomainEvent, ObservableRecord, ProjectId, ProjectState, ProposalId,
+  Relation, SpineStage, Thought,
 } from '@coral/core';
 
 const BASE = import.meta.env['VITE_API'] ?? 'http://localhost:8787';
@@ -122,6 +122,24 @@ export const detectClaims = (
   id: ProjectId,
   provider?: ProviderId,
 ): Promise<DetectResult> => call(`/projects/${id}/detect`, json({ provider }));
+
+export interface ScanResult extends ProjectView {
+  flagged: number;
+  alreadyStanding: number;
+  contradictions: number;
+  scannedForContradictions: boolean;
+  provider: ProviderId;
+  reason?: string;
+}
+
+/** What is missing or in tension across the whole map. */
+export const scanMap = (id: ProjectId, provider?: ProviderId): Promise<ScanResult> =>
+  call(`/projects/${id}/scan`, json({ provider }));
+
+/** The brief, assembled server-side from objects that already exist. */
+export const loadBrief = (
+  id: ProjectId,
+): Promise<{ brief: Brief; omitted: Thought[] }> => call(`/projects/${id}/brief`);
 
 export const retrievalStatus = (): Promise<{ fullText: boolean; detail: string }> =>
   call('/retrieval');

@@ -1,6 +1,7 @@
 import type { ProjectState, Thought } from '@coral/core';
 import {
-  parseDetection, renderCandidates, type ClaimCandidate,
+  parseContradictions, parseDetection, renderCandidates, renderClaims,
+  type ClaimCandidate, type ContradictionPair,
 } from './detect.js';
 import { MalformedMove, type CoachMoveResult, type CoachRequest } from './move.js';
 import {
@@ -169,4 +170,53 @@ function staticDetect(refs: readonly Thought[]): ClaimCandidate[] {
       objectId: t.objectId,
       rationale: 'This states something that could be disagreed with, which is what a claim does.',
     }));
+}
+
+export interface ContradictionOutcome {
+  pairs: ContradictionPair[];
+  provider: ProviderId;
+  fellBackFrom?: ProviderId;
+  reason?: string;
+}
+
+/**
+ * Which claims resist each other.
+ *
+ * There is no static floor for this one, and that is the honest answer rather
+ * than a shortcut: whether two claims conflict is a question about meaning, and
+ * a keyword heuristic that guessed at it would produce exactly the confident
+ * nonsense this product exists to avoid. With no agent installed, the scan
+ * reports that it could not look.
+ */
+export async function requestContradictions(
+  state: ProjectState,
+  preferred: ProviderId = 'claude-code',
+  providers: readonly CoachProvider[] = ORDER,
+): Promise<ContradictionOutcome> {
+  const { prompt, refs } = renderClaims(state);
+  if (refs.length < 2) return { pairs: [], provider: 'static' };
+
+  const provider = providers.find((p) => p.id === preferred);
+  if (preferred === 'static' || provider === undefined
+      || !('contradictions' in provider) || !(await provider.available())) {
+    return {
+      pairs: [],
+      provider: 'static',
+      ...(preferred === 'static' ? {} : { fellBackFrom: preferred }),
+      reason: 'Reading two claims against each other needs a model. Nothing was scanned.',
+    };
+  }
+
+  try {
+    const raw = await (provider as { contradictions: (p: string) => Promise<unknown> })
+      .contradictions(prompt);
+    return { pairs: parseContradictions(raw, refs), provider: provider.id };
+  } catch (error) {
+    return {
+      pairs: [],
+      provider: 'static',
+      fellBackFrom: provider.id,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
 }

@@ -1,6 +1,6 @@
 import {
-  SPINE, ancestorsOf, childrenOf, claimsWithoutEvidence, currentStage, isSpineStage,
-  openProposals, parentsOf, unansweredChallenges, versionsOf,
+  SPINE, ancestorsOf, childrenOf, currentStage, isSpineStage,
+  openProposals, parentsOf, structuralGaps as coreGaps, unansweredChallenges, versionsOf,
   type ObjectId, type ProjectState,
 } from '@coral/core';
 
@@ -98,42 +98,24 @@ export function renderContext(state: ProjectState, selected: ObjectId): string {
   return lines.join('\n');
 }
 
-/** Gaps the graph can prove, so the coach never has to guess at them. */
+/**
+ * Gaps the graph can prove, so the coach never has to guess at them.
+ *
+ * Read from `structuralGaps` in `@coral/core` rather than recomputed, so the
+ * coach, the scan and the brief all name the same gaps. Standing proposals and
+ * unanswered objections are added here because they are facts about this
+ * conversation rather than about the graph: the point of both is to stop the
+ * coach repeating a suggestion the student has already seen.
+ */
 export function structuralGaps(state: ProjectState): string[] {
-  const gaps: string[] = [];
+  const gaps = coreGaps(state).map((gap) => `${gap.flag}: ${gap.detail}`);
 
-  for (const claim of claimsWithoutEvidence(state)) {
-    gaps.push(`claim_without_evidence: "${claim.text}" has no evidence attached`);
-  }
-
-  const cited = new Set(
-    Object.values(state.thoughts)
-      .map((t) => t.evidence?.sourceId)
-      .filter((id): id is NonNullable<typeof id> => id !== undefined),
-  );
-  for (const source of Object.values(state.sources)) {
-    if (source.saved && !cited.has(source.sourceId)) {
-      gaps.push(`source_saved_never_cited: ${source.cite} was saved but never cited`);
-    }
-  }
-
-  for (const thought of Object.values(state.thoughts)) {
-    if (thought.type !== 'CHALLENGE' || thought.archived) continue;
-    if (childrenOf(state, thought.objectId).length === 0) {
-      gaps.push(`unresolved_challenge: "${thought.text}" has not been answered`);
-    }
-  }
-
-  // An objection the coach already raised and the student has not argued with.
-  // Worth naming, and worth not raising a second time.
   for (const move of unansweredChallenges(state)) {
     const target = move.targetObjectId === null ? undefined : state.thoughts[move.targetObjectId];
     if (target === undefined) continue;
     gaps.push(`unresolved_challenge: you already objected to "${target.text}" and it stands unanswered`);
   }
 
-  // Suggestions already on the table. Repeating one is noise, and the student
-  // declining one is a decision the next move should respect.
   for (const proposal of openProposals(state)) {
     gaps.push(
       `open_proposal: a ${proposal.suggestedType.toLowerCase()} is already proposed and undecided`,

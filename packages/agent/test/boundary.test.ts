@@ -4,7 +4,8 @@ import {
   type ObjectId, type ProjectState, type Thought,
 } from '@coral/core';
 import {
-  DETECTION_SCHEMA, MalformedDetection, parseDetection, renderCandidates,
+  CONTRADICTION_SCHEMA, DETECTION_SCHEMA, MalformedDetection,
+  parseContradictions, parseDetection, renderCandidates, renderClaims,
 } from '../src/detect.js';
 import { renderContext } from '../src/context.js';
 import { MOVE_SCHEMA, MalformedMove, parseMove } from '../src/move.js';
@@ -379,5 +380,72 @@ describe('detection points at the student\'s thoughts and writes none', () => {
     expect(prompt).toContain('1. [IDEA]');
     expect(prompt).toContain('2. [WONDER]');
     expect(prompt).not.toContain('Already a claim');
+  });
+});
+
+/**
+ * The contradiction scan is the one gap the graph cannot prove.
+ *
+ * Same closed shape as claim detection — two row numbers and a reason — so a
+ * model can neither name a claim that does not exist nor write one. And a
+ * contradiction is reported, never resolved: the schema has no field for which
+ * claim wins, because that is the student's to work out.
+ */
+describe('the contradiction scan names pairs and picks no winner', () => {
+  const claims = [
+    { objectId: 'a' as ObjectId, type: 'CLAIM', text: 'AI drafting narrows the hypotheses tried.' },
+    { objectId: 'b' as ObjectId, type: 'CLAIM', text: 'AI drafting widens the framings explored.' },
+    { objectId: 'c' as ObjectId, type: 'CLAIM', text: 'Reading time per source falls.' },
+  ] as unknown as Thought[];
+
+  it('has no field for a verdict or for text', () => {
+    const item = CONTRADICTION_SCHEMA.properties.pairs.items;
+    expect(item.additionalProperties).toBe(false);
+    expect(Object.keys(item.properties).sort()).toEqual(['a', 'b', 'rationale']);
+    expect(item.properties.a.type).toBe('integer');
+    expect(item.properties.b.type).toBe('integer');
+  });
+
+  it('resolves two row numbers to two claims', () => {
+    const pairs = parseContradictions(
+      { pairs: [{ a: 1, b: 2, rationale: 'One narrows what the other widens.' }] }, claims,
+    );
+    expect(pairs).toHaveLength(1);
+    expect([pairs[0]?.a, pairs[0]?.b]).toEqual(['a', 'b']);
+  });
+
+  it('drops a pair that names the same claim twice', () => {
+    expect(parseContradictions({ pairs: [{ a: 1, b: 1, rationale: 'x' }] }, claims)).toHaveLength(0);
+  });
+
+  it('drops a row number that lands on nothing', () => {
+    expect(parseContradictions({ pairs: [{ a: 1, b: 9, rationale: 'x' }] }, claims)).toHaveLength(0);
+  });
+
+  it('treats a pair as unordered, so the same two are not flagged twice', () => {
+    const pairs = parseContradictions({
+      pairs: [
+        { a: 1, b: 2, rationale: 'One narrows what the other widens.' },
+        { a: 2, b: 1, rationale: 'Said again the other way round.' },
+      ],
+    }, claims);
+    expect(pairs).toHaveLength(1);
+  });
+
+  it('drops extra fields a model attaches, including a verdict', () => {
+    const pairs = parseContradictions({
+      pairs: [{
+        a: 1, b: 2, rationale: 'One narrows what the other widens.',
+        correct: 1, resolution: 'The first claim is better supported.',
+      }],
+    }, claims);
+    expect(Object.keys(pairs[0] ?? {}).sort()).toEqual(['a', 'b', 'rationale']);
+    expect(JSON.stringify(pairs)).not.toContain('better supported');
+  });
+
+  it('has nothing to compare below two claims', () => {
+    const one = { ...initialState('p-1' as never), thoughts: {} } as unknown as ProjectState;
+    expect(renderClaims(one).refs).toHaveLength(0);
+    expect(renderClaims(one).prompt).toContain('not two claims');
   });
 });

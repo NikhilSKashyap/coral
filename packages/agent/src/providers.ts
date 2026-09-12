@@ -2,7 +2,10 @@ import { spawn } from 'node:child_process';
 import { access, constants } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CONSTITUTION, rungInstruction } from './constitution.js';
-import { DETECTION_INSTRUCTION, DETECTION_SCHEMA } from './detect.js';
+import {
+  CONTRADICTION_INSTRUCTION, CONTRADICTION_SCHEMA,
+  DETECTION_INSTRUCTION, DETECTION_SCHEMA,
+} from './detect.js';
 import { RUNG_KIND, SPINE, SPINE_STAGES, type CoachMoveKind } from '@coral/core';
 import { MOVE_SCHEMA, MalformedMove, parseMove, type CoachRequest, type CoachMoveResult } from './move.js';
 
@@ -199,6 +202,17 @@ export class ClaudeCodeProvider implements CoachProvider {
       DETECTION_SCHEMA,
       CONSTITUTION,
       `${DETECTION_INSTRUCTION}\n\n${prompt}`,
+      this.options.classifier,
+      'low',
+    );
+  }
+
+  /** Contradiction scanning, on the same cheap model as detection. */
+  async contradictions(prompt: string): Promise<unknown> {
+    return this.ask(
+      CONTRADICTION_SCHEMA,
+      CONSTITUTION,
+      `${CONTRADICTION_INSTRUCTION}\n\n${prompt}`,
       this.options.classifier,
       'low',
     );

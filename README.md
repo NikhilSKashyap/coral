@@ -34,9 +34,9 @@ Open http://localhost:5173, press **New question**, and build a map.
 ## Testing it
 
 ```bash
-pnpm test                                   # 118 unit tests: 82 over the invariants, 36 over the agent boundary
+pnpm test                                   # 141 unit tests: 98 over the invariants, 43 over the agent boundary
 pnpm --filter @coral/server test:db        # the five guards Postgres enforces
-pnpm --filter @coral/server test:e2e       # 99 checks over a whole session
+pnpm --filter @coral/server test:e2e       # 111 checks over a whole session
 pnpm --filter @coral/server probe "a query" # what retrieval returns, and at what level
 ```
 
@@ -89,6 +89,54 @@ slice: the ladder either teaches before it costs anything, or it does not teach.
 - The **Problem Frame** is a template fill over objects that already exist. The
   question is your thought word for word, and a refinement prompt you did not
   answer stays a gap rather than becoming prose.
+
+## The brief is assembled, never generated
+
+The **Brief** tab is the thing a student submits, and every line in it is a
+string the project already holds: a thought they wrote, a passage that was
+retrieved, a citation from a source record. There is no step anywhere in
+`assembleBrief` that composes a sentence.
+
+What the template contributes is headings, order, and the admission of absence.
+A section with nothing behind it renders dashed and open, showing what would
+close it rather than prose covering the hole:
+
+```
+WHERE THIS LEAVES ME                                    open
+No synthesis yet. This is the section only you can write.
+```
+
+That is the whole difference between a brief that is defensible line by line and
+a summary that reads well and answers for nothing. Every line links through to
+the object it came from, so the claim can be checked rather than taken on trust,
+and anything on the map the brief left out is listed at the end — nothing
+vanishes quietly.
+
+The test that holds this up collects every string in an assembled brief and
+asserts each one is findable in the project state. Prose written by the server
+fails it.
+
+## What is missing, and what is in tension
+
+**What is missing or in tension?** looks over the whole map. It has two halves,
+and the difference between them matters.
+
+Most gaps are facts about the structure — a claim with no evidence, an objection
+nobody answered, a source saved and never cited, a question rewritten past the
+work behind it. The graph proves every one, so they cost nothing and cannot be
+wrong the way a model can. They live in `packages/core/src/gaps.ts` and the
+coach, the scan and the brief all read the same list.
+
+**Contradiction is the exception.** Whether two claims resist each other is a
+question about what they mean, so it needs reading. There is deliberately no
+built-in fallback for it: a keyword heuristic guessing at contradiction would
+produce exactly the confident nonsense this product exists to avoid, so with no
+agent installed the scan reports that it could not look.
+
+Everything found is written as a `flag` move, which names the work and stops. A
+flag never picks a winner between two claims, never writes the synthesis, and
+never counts as a rung — it answers nothing the student asked for, so it cannot
+advance the ladder. A gap already flagged is not flagged again.
 
 ## A detected claim is a reading, not a rewrite
 
@@ -301,6 +349,8 @@ system implies text it never retrieved has nowhere to live.
 | `POST /projects/:id/frame` | assemble the Problem Frame from existing objects |
 | `POST /projects/:id/coach` | one move from the student's own agent, written through the guards |
 | `POST /projects/:id/detect` | which of the student's thoughts already read as claims |
+| `POST /projects/:id/scan` | gaps the graph can prove, plus contradictions if a model can look |
+| `GET /projects/:id/brief` | the Reasoning Brief, assembled from existing objects |
 | `POST /projects/:id/proposals/:pid/accept` | the student writes the thought a proposal stands for |
 | `POST /projects/:id/proposals/:pid/dismiss` | decline it, on the record |
 | `POST /projects/:id/search` | OpenAlex, with the fixture as the floor; an empty query uses the question |
@@ -360,10 +410,16 @@ stopped only by a database constraint and not by the guard the browser runs; and
 `claimsCreated` counted only thoughts typed as claims from the start, so a claim
 that arrived by retype was invisible to the instructor's panel.
 
-**Next.** Slice 05 is synthesis and the brief: contradiction and gap detection
-across claims, question refinement against the original, and the Reasoning Brief
-assembled strictly from existing objects. The detection machinery built here is
-the shape the contradiction scan will take.
+**Done (slice 05).** Synthesis and the brief. Structural gaps moved into core so
+one list serves the coach, the scan and the brief. Contradiction scanning reads
+claims pairwise on the cheap model and reports pairs without picking a winner.
+The Reasoning Brief assembles from existing objects, renders an empty section as
+an open gap rather than prose, and links every line to the object behind it.
+
+**Next.** Slice 06 is instructor review: assignment authoring, checkpoint
+requirements, the progress dashboard, and the resolve loop back to the student.
+The comment path and the diff it shows landed in slices 00 and 04, so what
+remains is assignments, the dashboard, and marking a comment resolved.
 
 Known gaps: there is no auth, and the three seats are fixed rows. The Codex
 adapter is written but still unverified, since Codex is not installed here.

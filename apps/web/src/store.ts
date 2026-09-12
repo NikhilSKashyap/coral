@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { spineComplete } from '@coral/core';
+import { spineComplete, type Brief, type Thought } from '@coral/core';
 import {
   initialState,
   type Actor, type DomainEvent, type ObjectId, type ObservableRecord,
@@ -7,13 +7,13 @@ import {
 } from '@coral/core';
 import {
   Refused, acceptProposal, askCoach, createProject, detectClaims, dismissProposal, draftFrame,
-  emit, listProjects, listProviders, loadDrift, loadProject, retrievalStatus, searchLiterature,
-  transcribePassage, uploadPaper, writeStage,
+  emit, listProjects, listProviders, loadBrief, loadDrift, loadProject, retrievalStatus,
+  scanMap, searchLiterature, transcribePassage, uploadPaper, writeStage,
   type CoachResponse, type DetectResult, type Drift, type ProjectSummary, type ProviderId,
-  type ProviderStatus, type SearchResult,
+  type ProviderStatus, type ScanResult, type SearchResult,
 } from './api.js';
 
-export type View = 'frame' | 'map' | 'focus';
+export type View = 'frame' | 'map' | 'focus' | 'brief';
 
 interface Studio {
   projectId: ProjectId | null;
@@ -42,6 +42,11 @@ interface Studio {
   ) => Promise<boolean>;
   detect: () => Promise<void>;
   lastDetection: DetectResult | null;
+  scan: () => Promise<void>;
+  lastScan: ScanResult | null;
+  brief: Brief | null;
+  omitted: Thought[];
+  refreshBrief: () => Promise<void>;
   dismissProposal: (proposalId: ProposalId) => Promise<boolean>;
   draftFrame: (answers: Record<string, string>) => Promise<boolean>;
   newProject: (title: string, group: string) => Promise<void>;
@@ -78,6 +83,9 @@ export const useStudio = create<Studio>((set, get) => ({
   refusal: null,
   lastSearch: null,
   lastDetection: null,
+  lastScan: null,
+  brief: null,
+  omitted: [],
   fullTextAvailable: null,
 
   refreshProjects: async () => {
@@ -313,6 +321,46 @@ export const useStudio = create<Studio>((set, get) => ({
         },
         busy: false,
       });
+    }
+  },
+
+  /**
+   * Look over the whole map for what is missing or in tension.
+   *
+   * Writes flags and nothing else, so the result is always something to look
+   * at rather than something that happened.
+   */
+  scan: async () => {
+    const { projectId, provider } = get();
+    if (projectId === null) return;
+    set({ busy: true, refusal: null });
+    try {
+      const view = await scanMap(projectId, provider);
+      set({
+        state: view.state, events: view.events, record: view.record,
+        lastScan: view, busy: false,
+      });
+      await get().refreshBrief();
+    } catch (error) {
+      set({
+        refusal: {
+          invariant: error instanceof Refused ? error.invariant : 'scan',
+          message: error instanceof Error ? error.message : String(error),
+        },
+        busy: false,
+      });
+    }
+  },
+
+  /** Assembled server-side, so the browser cannot drift from what a checkpoint would freeze. */
+  refreshBrief: async () => {
+    const { projectId } = get();
+    if (projectId === null) return;
+    try {
+      const { brief, omitted } = await loadBrief(projectId);
+      set({ brief, omitted });
+    } catch {
+      set({ brief: null, omitted: [] });
     }
   },
 

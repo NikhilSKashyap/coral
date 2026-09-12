@@ -53,7 +53,10 @@ interface View {
       status: string; acceptedAs: string | null;
     }>;
     frame: { question: string; concepts: string[]; assumptions: string[]; acceptedAt: string | null } | null;
-    thread: Array<{ kind?: string; targetObjectId?: string | null; hintLevel?: number; body?: string }>;
+    thread: Array<{
+      kind?: string; targetObjectId?: string | null; hintLevel?: number;
+      body?: string; flag?: string | null;
+    }>;
     seq: number;
   };
   events: Array<{ seq: number; type: string; actor: string }>;
@@ -72,6 +75,25 @@ async function post<T>(path: string, body?: unknown): Promise<{ status: number; 
       : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   });
   return { status: res.status, json: (await res.json()) as T };
+}
+
+interface BriefLineShape {
+  objectId: string | null;
+  text: string;
+  role: string | null;
+  flags: string[];
+  children: BriefLineShape[];
+}
+
+interface BriefView {
+  brief: {
+    question: string | null;
+    sections: Array<{ id: string; title: string; gap: boolean; gapPrompt: string; lines: BriefLineShape[] }>;
+    synthesisOpening: boolean;
+    cited: string[];
+    gaps: Array<{ flag: string; detail: string }>;
+  };
+  omitted: Array<{ type: string }>;
 }
 
 interface SearchView extends View {
@@ -517,12 +539,135 @@ async function claimsAndVersions(): Promise<void> {
   else bad('claimsArchived', String(archived.record['claimsArchived']));
 }
 
+
+/**
+ * Synthesis, gaps and the brief, slice 05.
+ *
+ * Driven without a model, so the contradiction half reports honestly that it
+ * could not look. What is under test is the half the graph can prove, and the
+ * invariant the brief turns on: nothing in it was written here.
+ */
+async function synthesisAndBrief(): Promise<void> {
+  console.log('\ngaps the graph can prove');
+  const created = await post<View>('/projects', {
+    title: 'AI and independent reasoning', group: 'AI & Learning',
+  });
+  const id = created.json.projectId;
+
+  const question = uuid();
+  await emit(id, 'student', 'thought.created', {
+    objectId: question, versionId: uuid(), type: 'QUESTION',
+    text: 'How does drafting with AI affect unaided synthesis of conflicting sources?',
+    note: '', position: { x: 0, y: 0 },
+  });
+  const claim = uuid();
+  await emit(id, 'student', 'thought.created', {
+    objectId: claim, versionId: uuid(), type: 'CLAIM',
+    text: 'Drafting with AI narrows the range of hypotheses graduate students try.',
+    note: '', position: { x: 0, y: 0 },
+  });
+
+  const scanned = await post<View & {
+    flagged: number; alreadyStanding: number; contradictions: number;
+    scannedForContradictions: boolean; reason?: string;
+  }>(`/projects/${id}/scan`, { provider: 'static' });
+
+  const flags = scanned.json.state.thread.filter((m) => m.kind === 'flag');
+  if (flags.some((f) => f.flag === 'claim_without_evidence')) {
+    ok('a claim with no evidence is flagged', `${scanned.json.flagged} flagged`);
+  } else {
+    bad('a claim with no evidence is flagged', 'no such flag');
+  }
+
+  if (!scanned.json.scannedForContradictions) {
+    ok('and it says plainly that contradictions were not scanned', 'no model, no guess');
+  } else {
+    bad('contradiction honesty', 'it claimed to have scanned without a model');
+  }
+
+  // A flag answers nothing the student asked for, so it must not move the ladder.
+  if (flags.every((f) => f.hintLevel === 0)) ok('a flag is never a rung');
+  else bad('a flag is never a rung', 'one carried a hint level');
+
+  const rescanned = await post<View & { flagged: number; alreadyStanding: number }>(
+    `/projects/${id}/scan`, { provider: 'static' },
+  );
+  if (rescanned.json.flagged === 0 && rescanned.json.alreadyStanding > 0) {
+    ok('scanning twice does not repeat itself', `${rescanned.json.alreadyStanding} already standing`);
+  } else {
+    bad('scanning twice', `${rescanned.json.flagged} flagged again`);
+  }
+
+  console.log('\nthe brief is assembled, never generated');
+  const before = await get<BriefView>(`/projects/${id}/brief`);
+
+  if (before.brief.question === 'How does drafting with AI affect unaided synthesis of conflicting sources?') {
+    ok('the question is quoted word for word');
+  } else {
+    bad('the question is quoted', 'it was rewritten');
+  }
+
+  // The invariant. Every line must already exist somewhere in the project.
+  const project = await get<View>(`/projects/${id}`);
+  const known = new Set<string>([
+    ...Object.values(project.state.thoughts).map((t) => t.text),
+    ...Object.values(project.state.passages).map((p) => p.text),
+    ...Object.values(project.state.sources).map((s) => s.cite),
+  ]);
+  const lines: string[] = [];
+  const walkLines = (ls: BriefLineShape[]): void => {
+    for (const l of ls) { lines.push(l.text); walkLines(l.children); }
+  };
+  for (const section of before.brief.sections) walkLines(section.lines);
+
+  const invented = lines.filter((t) => !known.has(t));
+  if (invented.length === 0) ok('no line in it is prose the server wrote', `${lines.length} lines, all traceable`);
+  else bad('no line is invented', `${invented.length} lines had no source: ${invented[0] ?? ''}`);
+
+  const empty = before.brief.sections.filter((s) => s.gap);
+  if (empty.length > 0 && empty.every((s) => s.lines.length === 0 && s.gapPrompt !== '')) {
+    ok('an empty section is a gap with a prompt', `${empty.length} open`);
+  } else {
+    bad('an empty section is a gap', 'a section covered for itself');
+  }
+
+  const claims = before.brief.sections.find((s) => s.id === 'claims');
+  if (claims?.lines[0]?.flags.includes('claim_without_evidence')) {
+    ok('the unsupported claim carries its flag in the brief');
+  } else {
+    bad('the claim carries its flag', JSON.stringify(claims?.lines[0]?.flags));
+  }
+
+  if (before.brief.synthesisOpening === false) ok('one claim is not yet a synthesis opening');
+  else bad('synthesis opening', 'it opened on a single claim');
+
+  const second = uuid();
+  await emit(id, 'student', 'thought.created', {
+    objectId: second, versionId: uuid(), type: 'CLAIM',
+    text: 'Unaided synthesis surfaces more contradictions between sources.',
+    note: '', position: { x: 0, y: 0 },
+  });
+  const after = await get<BriefView>(`/projects/${id}/brief`);
+  if (after.brief.synthesisOpening) ok('two claims and no synthesis is an opening', 'not a failing');
+  else bad('synthesis opening', 'two claims did not open one');
+
+  if (after.omitted.length === 0) ok('nothing on the map is silently left out');
+  else bad('omitted', `${after.omitted.length} thoughts vanished`);
+
+  // Every cited id must resolve, or the brief is citing something imaginary.
+  const unresolved = after.brief.cited.filter((oid) => project.state.thoughts[oid] === undefined
+    && after.brief.cited.includes(oid) && oid !== second);
+  if (unresolved.length === 0) ok('every citation resolves to a real object');
+  else bad('citations resolve', `${unresolved.length} did not`);
+}
+
 async function main(): Promise<void> {
   console.log(`\ncoral end-to-end  ${BASE}\n`);
 
   await framingWalk();
   await proposalPath();
   await claimsAndVersions();
+  await synthesisAndBrief();
 
 
   console.log('project');

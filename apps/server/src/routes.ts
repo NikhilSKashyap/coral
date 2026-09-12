@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
-  EVENT_TYPES, RELATIONS, SOURCE_ACCESS, THOUGHT_TYPES, commentDrift,
+  EVENT_TYPES, RELATIONS, SOURCE_ACCESS, THOUGHT_TYPES, assembleBrief, commentDrift,
+  omittedFrom,
   type CommentId, type ProjectId, type ProposalId, type SourceId,
 } from '@coral/core';
 import { coach, detectProviders, type CoachRequestBody } from './coach.js';
@@ -10,6 +11,7 @@ import {
 } from './proposals.js';
 import { canRetrieveFullText, runSearch, type SearchBody } from './retrieval.js';
 import { detectClaims, type DetectBody } from './detection.js';
+import { scan, type ScanBody } from './scan.js';
 import { MAX_PDF_BYTES, UploadRefused, transcribePassage, uploadPaper } from './upload.js';
 import { appendEvent, createProject, listProjects, loadProject } from './repo.js';
 
@@ -194,6 +196,25 @@ export async function routes(app: FastifyInstance): Promise<void> {
     '/projects/:id/detect',
     async (request) => detectClaims(request.params.id as ProjectId, request.body ?? {}),
   );
+
+  /**
+   * What is missing or in tension across the whole map.
+   *
+   * Structural gaps are proved from the graph and cost nothing. Contradiction
+   * needs reading, so it needs a model, and the response says whether one
+   * actually looked.
+   */
+  app.post<{ Params: { id: string }; Body: ScanBody }>(
+    '/projects/:id/scan',
+    async (request) => scan(request.params.id as ProjectId, request.body ?? {}),
+  );
+
+  /** The Reasoning Brief, assembled from objects that already exist. */
+  app.get<{ Params: { id: string } }>('/projects/:id/brief', async (request) => {
+    const view = await loadProject(request.params.id as ProjectId);
+    const brief = assembleBrief(view.state);
+    return { brief, omitted: omittedFrom(view.state, brief) };
+  });
 
   /** Whether this machine can reach full text at all. */
   app.get('/retrieval', async () => ({

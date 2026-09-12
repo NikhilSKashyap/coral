@@ -138,3 +138,106 @@ export function parseDetection(raw: unknown, refs: readonly Thought[]): ClaimCan
   }
   return out;
 }
+
+/* ------------------------------------------------------------------ */
+/* Contradiction                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Two claims that resist each other.
+ *
+ * The one structural flag the graph cannot prove: whether two claims conflict
+ * is a matter of what they mean, so it needs reading. Same shape as claim
+ * detection — a pair of row numbers and a reason — so a model can neither name
+ * a claim that does not exist nor write one.
+ *
+ * A contradiction is reported, never resolved. Holding two claims that resist
+ * each other is often the most interesting place a student can be, and the
+ * product's job is to make sure they have noticed rather than to pick a winner.
+ */
+export const CONTRADICTION_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['pairs'],
+  properties: {
+    pairs: {
+      type: 'array',
+      maxItems: 4,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['a', 'b', 'rationale'],
+        properties: {
+          a: { type: 'integer', description: 'The number of the first claim, exactly as shown.' },
+          b: { type: 'integer', description: 'The number of the second claim, exactly as shown.' },
+          rationale: {
+            type: 'string',
+            description:
+              'One sentence on what cannot be true at the same time. Describe the claims, never the student.',
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+export interface ContradictionPair {
+  a: ObjectId;
+  b: ObjectId;
+  rationale: string;
+}
+
+export const CONTRADICTION_INSTRUCTION = `Read the claims below and say which pairs cannot comfortably both be true.
+
+A contradiction is a real tension in what the claims assert: accepting one makes the other harder to hold. Two claims about different things are not a contradiction, and neither are two claims that simply sit at different levels of detail.
+
+Return none if none conflict. Most sets of claims do not.
+
+Give the two numbers exactly as shown and one sentence naming what cannot hold at once. Describe the claims. Never describe the student, and never say which one is right — that is theirs to work out.`;
+
+/** The numbered claim list the contradiction scan reads. */
+export function renderClaims(state: ProjectState): { prompt: string; refs: Thought[] } {
+  const refs = liveThoughts(state)
+    .filter((t) => t.type === 'CLAIM')
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  if (refs.length < 2) return { prompt: 'There are not two claims to compare.', refs };
+
+  const lines = refs.map((t, i) => `${String(i + 1)}. ${t.text}`);
+  return { prompt: ['THE CLAIMS ON THE MAP', ...lines].join('\n'), refs };
+}
+
+export function parseContradictions(
+  raw: unknown,
+  refs: readonly Thought[],
+): ContradictionPair[] {
+  if (!isRecord(raw)) throw new MalformedDetection(raw, 'expected an object');
+  const pairs = raw['pairs'];
+  if (!Array.isArray(pairs)) throw new MalformedDetection(raw, 'expected a pairs array');
+
+  const seen = new Set<string>();
+  const out: ContradictionPair[] = [];
+
+  for (const entry of pairs) {
+    if (!isRecord(entry)) continue;
+    const a = entry['a'];
+    const b = entry['b'];
+    if (typeof a !== 'number' || typeof b !== 'number') continue;
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a === b) continue;
+
+    const first = refs[a - 1];
+    const second = refs[b - 1];
+    if (first === undefined || second === undefined) continue;
+
+    // A pair is unordered: flagging the same two claims twice is noise.
+    const key = [first.objectId, second.objectId].sort().join('|');
+    if (seen.has(key)) continue;
+
+    const rationale = typeof entry['rationale'] === 'string' ? entry['rationale'].trim() : '';
+    if (rationale === '') continue;
+
+    seen.add(key);
+    out.push({ a: first.objectId, b: second.objectId, rationale });
+  }
+  return out;
+}
