@@ -1,5 +1,5 @@
 import type {
-  Actor, DomainEvent, ObservableRecord, ProjectId, ProjectState,
+  Actor, DomainEvent, ObservableRecord, ProjectId, ProjectState, SpineStage,
 } from '@coral/core';
 
 const BASE = import.meta.env['VITE_API'] ?? 'http://localhost:8787';
@@ -55,6 +55,25 @@ export const emit = (
   type: DomainEvent['type'],
   payload: unknown,
 ): Promise<ProjectView> => call(`/projects/${id}/events`, json({ actor, type, payload }));
+
+/**
+ * Write one stage of the framing walk.
+ *
+ * The stage travels with the request but the server checks it against the walk's
+ * own position, so a client asking to start at QUESTION is refused with
+ * `spine.order` rather than obeyed.
+ */
+export const writeStage = (
+  id: ProjectId,
+  stage: SpineStage,
+  text: string,
+): Promise<ProjectView> => call(`/projects/${id}/spine`, json({ stage, text }));
+
+/** Assemble the Problem Frame from objects that already exist. Nothing is generated. */
+export const draftFrame = (
+  id: ProjectId,
+  answers: Record<string, string>,
+): Promise<ProjectView> => call(`/projects/${id}/frame`, json({ answers }));
 
 export const searchLiterature = (id: ProjectId): Promise<ProjectView> =>
   call(`/projects/${id}/search`, { method: 'POST' });

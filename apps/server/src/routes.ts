@@ -4,6 +4,7 @@ import {
   type CommentId, type ProjectId,
 } from '@coral/core';
 import { coach, detectProviders, type CoachRequestBody } from './coach.js';
+import { StageOutOfOrder, draftProblemFrame, writeStage, type StageWriteBody } from './spine.js';
 import { FIXTURE_PAPERS } from './fixtures.js';
 import { appendEvent, createProject, listProjects, loadProject } from './repo.js';
 
@@ -24,6 +25,32 @@ export async function routes(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { id: string }; Body: CoachRequestBody }>(
     '/projects/:id/coach',
     async (request) => coach(request.params.id as ProjectId, request.body),
+  );
+
+  /**
+   * One stage of the framing walk: the student's thought, the relation into it,
+   * and the two rung-zero moves that answer it. Out-of-order stages are refused
+   * here rather than silently reordered, because the sequence is the lesson.
+   */
+  app.post<{ Params: { id: string }; Body: StageWriteBody }>(
+    '/projects/:id/spine',
+    async (request, reply) => {
+      try {
+        return await writeStage(request.params.id as ProjectId, request.body);
+      } catch (error) {
+        if (error instanceof StageOutOfOrder) {
+          return reply.status(422).send({ invariant: 'spine.order', message: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  /** Assemble the Problem Frame from objects that already exist. */
+  app.post<{ Params: { id: string }; Body: { answers?: Record<string, string> } }>(
+    '/projects/:id/frame',
+    async (request) =>
+      draftProblemFrame(request.params.id as ProjectId, request.body?.answers ?? {}),
   );
 
   app.post<{ Body: { title?: string; group?: string } }>('/projects', async (request, reply) => {

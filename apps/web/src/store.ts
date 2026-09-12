@@ -1,16 +1,17 @@
 import { create } from 'zustand';
+import { spineComplete } from '@coral/core';
 import {
   initialState,
   type Actor, type DomainEvent, type ObjectId, type ObservableRecord,
-  type ProjectId, type ProjectState,
+  type ProjectId, type ProjectState, type SpineStage,
 } from '@coral/core';
 import {
-  Refused, askCoach, createProject, emit, listProjects, listProviders, loadDrift,
-  loadProject, searchLiterature,
+  Refused, askCoach, createProject, draftFrame, emit, listProjects, listProviders, loadDrift,
+  loadProject, searchLiterature, writeStage,
   type CoachResponse, type Drift, type ProjectSummary, type ProviderId, type ProviderStatus,
 } from './api.js';
 
-export type View = 'map' | 'focus';
+export type View = 'frame' | 'map' | 'focus';
 
 interface Studio {
   projectId: ProjectId | null;
@@ -31,7 +32,9 @@ interface Studio {
   refreshProjects: () => Promise<void>;
   refreshProviders: () => Promise<void>;
   setProvider: (provider: ProviderId) => void;
-  ask: (objectId: ObjectId, opts: { escalate?: boolean; argue?: boolean }) => Promise<void>;
+  ask: (objectId: ObjectId, opts: { escalate?: boolean; argue?: boolean; provider?: ProviderId }) => Promise<void>;
+  writeStage: (stage: SpineStage, text: string) => Promise<boolean>;
+  draftFrame: (answers: Record<string, string>) => Promise<boolean>;
   newProject: (title: string, group: string) => Promise<void>;
   open: (id: ProjectId) => Promise<void>;
   write: (actor: Actor, type: DomainEvent['type'], payload: unknown) => Promise<boolean>;
@@ -55,7 +58,7 @@ export const useStudio = create<Studio>((set, get) => ({
   provider: 'claude-code',
   lastMove: null,
   selected: null,
-  view: 'map',
+  view: 'frame',
   role: 'student',
   busy: false,
   refusal: null,
@@ -82,7 +85,9 @@ export const useStudio = create<Studio>((set, get) => ({
     if (projectId === null) return;
     set({ busy: true, refusal: null });
     try {
-      const res = await askCoach(projectId, { objectId, ...opts, provider });
+      // The framing walk pins itself to the built-in ladder: slice 01 has no
+      // model in it, and a student on that walk should not spend their quota.
+      const res = await askCoach(projectId, { objectId, ...opts, provider: opts.provider ?? provider });
       set({ state: res.state, events: res.events, record: res.record, lastMove: res, busy: false });
     } catch (error) {
       set({
@@ -92,6 +97,53 @@ export const useStudio = create<Studio>((set, get) => ({
         },
         busy: false,
       });
+    }
+  },
+
+  /**
+   * One stage of the framing walk.
+   *
+   * Deliberately not `write`: a stage is four appends that belong together, and
+   * the server owns which ones. All the browser sends is the student's words.
+   */
+  writeStage: async (stage, text) => {
+    const { projectId } = get();
+    if (projectId === null) return false;
+    set({ busy: true, refusal: null });
+    try {
+      const view = await writeStage(projectId, stage, text);
+      set({ state: view.state, events: view.events, record: view.record, busy: false });
+      await get().refreshProjects();
+      return true;
+    } catch (error) {
+      set({
+        refusal: {
+          invariant: error instanceof Refused ? error.invariant : 'network',
+          message: error instanceof Error ? error.message : String(error),
+        },
+        busy: false,
+      });
+      return false;
+    }
+  },
+
+  draftFrame: async (answers) => {
+    const { projectId } = get();
+    if (projectId === null) return false;
+    set({ busy: true, refusal: null });
+    try {
+      const view = await draftFrame(projectId, answers);
+      set({ state: view.state, events: view.events, record: view.record, busy: false });
+      return true;
+    } catch (error) {
+      set({
+        refusal: {
+          invariant: error instanceof Refused ? error.invariant : 'network',
+          message: error instanceof Error ? error.message : String(error),
+        },
+        busy: false,
+      });
+      return false;
     }
   },
 
@@ -113,6 +165,7 @@ export const useStudio = create<Studio>((set, get) => ({
     set({
       projectId: view.projectId, state: view.state, events: view.events, record: view.record,
       drift, selected: first as ObjectId | null, busy: false, refusal: null,
+      view: spineComplete(view.state) ? 'map' : 'frame',
     });
   },
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Actor, ProjectId } from '@coral/core';
 import FocusView from './FocusView.js';
+import FramingView from './FramingView.js';
 import Inspector from './Inspector.js';
 import MapView from './MapView.js';
 import { useStudio } from './store.js';
@@ -90,9 +91,9 @@ pnpm --filter @coral/server start`}
           <span className="grow" />
 
           <div className="seg">
-            {(['map', 'focus'] as const).map((v) => (
+            {(['frame', 'map', 'focus'] as const).map((v) => (
               <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>
-                {v === 'map' ? 'Map' : 'Focus'}
+                {v === 'frame' ? 'Frame' : v === 'map' ? 'Map' : 'Focus'}
               </button>
             ))}
           </div>
@@ -115,7 +116,7 @@ pnpm --filter @coral/server start`}
               </p>
             </div>
           </div>
-        ) : view === 'map' ? <MapView /> : <FocusView />}
+        ) : view === 'frame' ? <FramingView /> : view === 'map' ? <MapView /> : <FocusView />}
       </main>
 
       <Inspector />

@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { access, constants } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CONSTITUTION, rungInstruction } from './constitution.js';
+import { RUNG_KIND, SPINE, SPINE_STAGES, type CoachMoveKind } from '@coral/core';
 import { MOVE_SCHEMA, MalformedMove, parseMove, type CoachRequest, type CoachMoveResult } from './move.js';
 
 export interface RunResult {
@@ -300,39 +301,24 @@ export class StaticProvider implements CoachProvider {
   }
 }
 
+/**
+ * The ladder, with no model behind it.
+ *
+ * The five framing stages read their rungs straight out of `SPINE` in
+ * `@coral/core`, so the copy a student sees while walking the spine and the
+ * copy this provider falls back to are the same strings, not two drifting
+ * paraphrases of the v1 prototype. Only the types that are not stages on the
+ * walk are written out here.
+ */
 const LADDER: Record<string, CoachMoveResult[]> = {
-  NOTICE: [
-    { kind: 'reflect', body: 'You are recording something you saw rather than explaining it, which is the right order.' },
-    { kind: 'ask', body: 'What about this did you not expect?' },
-    { kind: 'offer_structure', body: 'Separate the event you observed from your explanation of it. Only the event belongs in a notice.' },
-    { kind: 'offer_sentence_frame', body: 'Try completing: I noticed that ___, which I did not expect because ___.' },
-  ],
-  WONDER: [
-    { kind: 'reflect', body: 'That reads as an open question rather than a conclusion.' },
-    { kind: 'ask', body: 'Which two things here are hard to hold together?' },
-    { kind: 'offer_structure', body: 'A wonder becomes useful when it names two claims that resist each other.' },
-    { kind: 'offer_sentence_frame', body: 'Try completing: I wonder whether ___ actually means ___.' },
-  ],
-  TENSION: [
-    { kind: 'reflect', body: 'You are holding a visible gain against a possible hidden cost.' },
-    { kind: 'ask', body: 'Which of the two would you notice first if you were wrong?' },
-    { kind: 'offer_structure', body: 'A tension holds two claims that are both plausible and hard to reconcile. Name each one separately.' },
-    { kind: 'offer_sentence_frame', body: 'Try completing: Although ___, ___.' },
-  ],
-  UNKNOWN: [
-    { kind: 'reflect', body: 'This is a gap evidence could close, not a topic.' },
-    { kind: 'ask', body: 'What observation would tell those two possibilities apart?' },
-    { kind: 'offer_structure', body: 'An unknown names a population and an activity, not a subject area.' },
-    { kind: 'offer_sentence_frame', body: 'Try completing: It is not yet known whether ___ can ___ without ___.' },
-  ],
-  QUESTION: [
-    { kind: 'reflect', body: 'This is a first version. Some of its terms still carry more than one meaning.' },
-    { kind: 'ask', body: 'Which term here would two readers define differently?' },
-    { kind: 'offer_structure', body: 'A researchable question names who you are studying, what is uncertain, and under what conditions.' },
-    { kind: 'offer_sentence_frame', body: 'Try completing: For ___, how does ___ affect ___ during ___?' },
-  ],
+  ...Object.fromEntries(
+    SPINE_STAGES.map((stage) => [
+      stage,
+      SPINE[stage].hints.map((body, rung) => ({ kind: RUNG_KIND[rung] as CoachMoveKind, body })),
+    ]),
+  ),
   EVIDENCE: [
-    { kind: 'reflect', body: 'The finding is the paper’s. The inference is yours.' },
+    { kind: 'reflect', body: 'The finding is the paper\u2019s. The inference is yours.' },
     { kind: 'ask', body: 'What does this let you claim, and what does it not?' },
     { kind: 'offer_structure', body: 'A warrant states the step from finding to claim. Write the step, not the finding again.' },
     { kind: 'offer_sentence_frame', body: 'Try completing: This shows ___, which licenses ___ but not ___.' },
@@ -346,9 +332,12 @@ const LADDER: Record<string, CoachMoveResult[]> = {
 };
 
 const CHALLENGES: Record<string, string> = {
-  NOTICE: 'You are treating speed as the salient feature of what you saw. What else changed at the same time that you did not record?',
-  TENSION: 'What alternative explanation could produce the same observation without the tension being real?',
-  QUESTION: 'Your question assumes the effect runs in one direction. What would it look like if it ran the other way?',
+  ...Object.fromEntries(
+    SPINE_STAGES.map((stage) => {
+      const { assumption, question } = SPINE[stage].challenge;
+      return [stage, `${assumption} ${question}`];
+    }),
+  ),
   EVIDENCE: 'A reader could accept the finding and still reject your claim. On what grounds?',
   DEFAULT: 'What would someone have to believe to disagree with you?',
 };

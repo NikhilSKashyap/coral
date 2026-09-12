@@ -10,6 +10,8 @@
  * 422 and the name of the invariant that stopped it. A run where everything
  * succeeds is a failing run.
  */
+import { REFINEMENT_CHECKS, SPINE, SPINE_RELATION, SPINE_STAGES } from '@coral/core';
+
 const BASE = process.env['BASE'] ?? 'http://localhost:8787';
 
 let passed = 0;
@@ -43,6 +45,8 @@ interface View {
     passages: Record<string, { passageId: string; sourceId: string }>;
     snapshots: Record<string, { snapshotId: string }>;
     comments: Record<string, unknown>;
+    frame: { question: string; concepts: string[]; assumptions: string[]; acceptedAt: string | null } | null;
+    thread: Array<{ kind?: string; targetObjectId?: string | null; hintLevel?: number; body?: string }>;
     seq: number;
   };
   events: Array<{ seq: number; type: string; actor: string }>;
@@ -85,8 +89,123 @@ async function refuse(
   else bad(`REFUSED ${label}`, `expected 422, got ${status}`);
 }
 
+
+/**
+ * The framing walk, slice 01.
+ *
+ * Its own project, because the walk starts from an empty graph by definition.
+ * Nothing here calls a model: every line the coach says is the v1 prototype's
+ * copy read out of `SPINE`, and the assertions below check that what landed in
+ * the log is that copy and not a paraphrase.
+ */
+async function framingWalk(): Promise<void> {
+  console.log('\nframing walk');
+  const created = await post<View>('/projects', {
+    title: 'AI and independent reasoning', group: 'AI & Learning',
+  });
+  const id = created.json.projectId;
+  ok('walk project created', id);
+
+  // The sequence is the lesson, so starting in the middle is refused.
+  const jumped = await post<View>(`/projects/${id}/spine`, {
+    stage: 'QUESTION', text: 'Skipping straight to the question.',
+  });
+  if (jumped.status === 422) ok('REFUSED starting at QUESTION', jumped.json.invariant ?? '');
+  else bad('REFUSED starting at QUESTION', `expected 422, got ${jumped.status}`);
+
+  const TEXT: Record<string, string> = {
+    NOTICE: 'Students complete assignments much faster when they use AI.',
+    WONDER: 'Are they actually learning more?',
+    TENSION: 'Performance increases, but independent learning may not.',
+    UNKNOWN: 'Can students perform the same reasoning without AI?',
+    QUESTION: "How does generative AI use during literature synthesis affect graduate students' ability to independently analyze conflicting sources?",
+  };
+
+  let view: View | null = null;
+  for (const stage of SPINE_STAGES) {
+    const res = await post<View>(`/projects/${id}/spine`, { stage, text: TEXT[stage] });
+    if (res.status !== 200) { bad(`${stage} written`, `status ${res.status}`); return; }
+    view = res.json;
+
+    const written = Object.values(view.state.thoughts).find((t) => t.type === stage);
+    if (written?.text === TEXT[stage]) ok(`${stage} written`, 'the student\u2019s words, unchanged');
+    else bad(`${stage} written`, 'text did not survive the round trip');
+
+    const moves = view.state.thread.filter((m) => m.targetObjectId === written?.objectId);
+    const reflect = moves.find((m) => m.kind === 'reflect');
+    if (reflect?.body === SPINE[stage].hints[0]) ok(`${stage} reflection`, 'rung 1, volunteered');
+    else bad(`${stage} reflection`, 'the coach said something not in SPINE');
+
+    const handoff = moves.find((m) => m.kind === 'ask');
+    if (handoff?.body === SPINE[stage].after) ok(`${stage} handoff`, 'opens the next stage');
+    else bad(`${stage} handoff`, 'the handoff line did not match SPINE');
+
+    if (stage !== 'NOTICE') {
+      const relation = SPINE_RELATION[stage];
+      const wired = Object.values(view.state.relations)
+        .some((r) => r.relation === relation && !r.removed);
+      if (wired) ok(`${stage} wired to the stage before`, relation);
+      else bad(`${stage} wired to the stage before`, `no ${relation} edge`);
+    }
+  }
+
+  if (view === null) return;
+  const notice = Object.values(view.state.thoughts).find((t) => t.type === 'NOTICE');
+  if (notice === undefined) return;
+
+  /* ---- the ladder, on the built-in coach ------------------------------ */
+  console.log('\nladder');
+  await refuse('a jump to the sentence frame', id, 'coach', 'coach.moved', {
+    moveId: uuid(), kind: 'offer_sentence_frame', targetObjectId: notice.objectId,
+    hintLevel: 3, body: SPINE.NOTICE.hints[3], flag: null,
+  });
+
+  for (let expected = 1; expected <= 3; expected += 1) {
+    const res = await post<View & { rung: number; provider: string; move: { body: string } }>(
+      `/projects/${id}/coach`,
+      { objectId: notice.objectId, escalate: true, provider: 'static' },
+    );
+    if (res.json.rung === expected && res.json.move.body === SPINE.NOTICE.hints[expected]) {
+      ok(`rung ${expected + 1}`, res.json.move.body.slice(0, 44) + '\u2026');
+    } else {
+      bad(`rung ${expected + 1}`, `got rung ${res.json.rung}`);
+    }
+  }
+
+  // A fourth press must not invent a fifth rung.
+  const ceiling = await post<View & { rung: number }>(
+    `/projects/${id}/coach`,
+    { objectId: notice.objectId, escalate: true, provider: 'static' },
+  );
+  if (ceiling.json.rung === 3) ok('the ladder stops at the sentence frame', 'rung 4 is the last');
+  else bad('the ladder stops', `got rung ${ceiling.json.rung}`);
+
+  /* ---- the frame is assembled, never generated ------------------------ */
+  console.log('\nproblem frame');
+  const answered = REFINEMENT_CHECKS[0];
+  const framed = await post<View>(`/projects/${id}/frame`, {
+    answers: { [answered]: 'Graduate students in a literature synthesis seminar.' },
+  });
+  const frame = framed.json.state.frame;
+
+  if (frame?.question === TEXT['QUESTION']) ok('the frame quotes the question verbatim');
+  else bad('the frame quotes the question', 'the question was rewritten');
+
+  if (frame?.assumptions.length === 1) ok('an unanswered prompt stays a gap', '1 of 5 answered');
+  else bad('an unanswered prompt stays a gap', `${frame?.assumptions.length ?? 0} assumptions`);
+
+  await refuse('an instructor accepting the frame', id, 'instructor', 'frame.accepted', {});
+
+  const accepted = await emit(id, 'student', 'frame.accepted', {});
+  if (accepted.json.state.frame?.acceptedAt !== null) ok('the student accepts the frame');
+  else bad('the student accepts the frame', 'acceptedAt stayed null');
+}
+
 async function main(): Promise<void> {
   console.log(`\ncoral end-to-end  ${BASE}\n`);
+
+  await framingWalk();
+
 
   console.log('project');
   const created = await post<View>('/projects', {

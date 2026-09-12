@@ -34,16 +34,16 @@ Open http://localhost:5173, press **New question**, and build a map.
 ## Testing it
 
 ```bash
-pnpm test                                   # 21 unit tests over the invariants
-pnpm --filter @coral/server test:db        # the guards Postgres enforces
-pnpm --filter @coral/server test:e2e       # 26 checks over a whole session
+pnpm test                                   # 34 unit tests over the invariants
+pnpm --filter @coral/server test:db        # the five guards Postgres enforces
+pnpm --filter @coral/server test:e2e       # 56 checks over a whole session
 ```
 
 The end-to-end script drives a full session against a running server: a student
-builds a map, a coach offers moves, evidence is created from a passage, a
-checkpoint is submitted, an instructor comments, the student revises twice. Lines
-marked `REFUSED` must fail, with a 422 and the name of the invariant that stopped
-them. A run where everything succeeds is a failing run.
+walks the framing spine, builds a map, a coach offers moves, evidence is created
+from a passage, a checkpoint is submitted, an instructor comments, the student
+revises twice. Lines marked `REFUSED` must fail, with a 422 and the name of the
+invariant that stopped them. A run where everything succeeds is a failing run.
 
 Three things in the interface exist to be tried rather than read:
 
@@ -54,6 +54,36 @@ Three things in the interface exist to be tried rather than read:
   both. A paywalled source becomes usable only after **Upload the paper**.
 - **Review tab**, in the instructor seat, shows a comment that survived two
   revisions: *reviewed v1, now v3*, with the text then and the text now.
+
+## The framing walk
+
+Press **New question** and the studio opens on **Frame**, not on the map. Five
+stages, one at a time: what you noticed, what you wonder, what is in tension,
+what is unknown, and only then the question. Each one is an ordinary thought,
+wired to the stage before it with an ordinary relation, so the walk and the map
+are one graph rendered two ways — accept the frame and the same five nodes are
+sitting on the canvas.
+
+Every word the coach says here is the v1 prototype's copy, read out of
+`SPINE` in `packages/core/src/spine.ts`. No model runs. That is the point of the
+slice: the ladder either teaches before it costs anything, or it does not teach.
+
+- Writing a stage is one request. The server appends the thought, the relation,
+  a rung-one reflection on what you wrote, and the handoff question that opens
+  the next stage — so `promptedBy` chains the walk and every coach utterance is
+  in the log.
+- **More help** climbs one rung: a reflection, a question, a structure, and only
+  then a sentence frame. The button relabels itself at the last rung and then
+  says *No further help*. `assertHintLadder` refuses a jump, so rung four cannot
+  be reached without passing through the other three.
+- The stage order is checked server-side against the walk's own position. A
+  client that asks to start at `QUESTION` gets a 422 naming `spine.order`.
+- At the question, **What you have established** lists your four earlier stages
+  under their labels and stops. Assembling them into a sentence is the step the
+  product refuses to take.
+- The **Problem Frame** is a template fill over objects that already exist. The
+  question is your thought word for word, and a refinement prompt you did not
+  answer stays a gap rather than becoming prose.
 
 ## The coach runs on your own subscription
 
@@ -132,6 +162,8 @@ system implies text it never retrieved has nowhere to live.
 | `POST /projects` | create one |
 | `GET /projects/:id` | replayed state, the event log, the observable record |
 | `POST /projects/:id/events` | the only write path; 422 carries the invariant name |
+| `POST /projects/:id/spine` | one stage of the framing walk, with its relation and its two coach moves |
+| `POST /projects/:id/frame` | assemble the Problem Frame from existing objects |
 | `POST /projects/:id/search` | fixture literature until real retrieval lands |
 | `GET /projects/:id/drift` | how far each commented object has moved since review |
 
@@ -141,10 +173,16 @@ system implies text it never retrieved has nowhere to live.
 migration, the server, and a studio with a map view, a focus view, sources, the
 coach ladder, checkpoints and instructor feedback.
 
-**Next.** Slice 01 is the guided framing spine, driven by the static prompt copy
-from the v1 prototype with no model in the loop. Slice 02 puts a real coach
-behind the buttons that are currently wired to fixed moves.
+**Done (slice 01).** The guided framing spine: five stages, the escalating
+ladder, the established-pieces list, and the Problem Frame drafted and accepted.
+The copy is the v1 prototype's and no model is in the loop, so the pedagogy can
+be put in front of a student before a single call is paid for. The static ladder
+the agent falls back to now reads the same `SPINE` table, so there is one copy of
+the hints rather than two that drift.
 
-Known gaps: literature search is a fixture, not retrieval; the Problem Frame
-events are recorded but not yet rendered; there is no auth, and the three seats
-are fixed rows.
+**Next.** Slice 02 puts a real coach behind the framing ladder and the map's
+move buttons — the adapter already exists, and this is the prompt work. Slice 03
+replaces the literature fixture with retrieval.
+
+Known gaps: literature search is a fixture, not retrieval; there is no auth, and
+the three seats are fixed rows.
