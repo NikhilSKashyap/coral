@@ -45,6 +45,11 @@ interface View {
     passages: Record<string, { passageId: string; sourceId: string }>;
     snapshots: Record<string, { snapshotId: string }>;
     comments: Record<string, unknown>;
+    proposals: Record<string, {
+      proposalId: string; kind: string; suggestedType: string;
+      targetObjectId: string | null; rationale: string;
+      status: string; acceptedAs: string | null;
+    }>;
     frame: { question: string; concepts: string[]; assumptions: string[]; acceptedAt: string | null } | null;
     thread: Array<{ kind?: string; targetObjectId?: string | null; hintLevel?: number; body?: string }>;
     seq: number;
@@ -201,10 +206,138 @@ async function framingWalk(): Promise<void> {
   else bad('the student accepts the frame', 'acceptedAt stayed null');
 }
 
+
+/**
+ * The proposal path, slice 02.
+ *
+ * The coach names a kind of thought; the student writes the sentence. Driven on
+ * the built-in ladder so the run costs nothing and is deterministic — what is
+ * under test is the write path, which is identical whichever provider answered.
+ */
+async function proposalPath(): Promise<void> {
+  console.log('\nproposals');
+  const created = await post<View>('/projects', {
+    title: 'AI and independent reasoning', group: 'AI & Learning',
+  });
+  const id = created.json.projectId;
+
+  // A thought to object to.
+  const tension = uuid();
+  await emit(id, 'student', 'thought.created', {
+    objectId: tension, versionId: uuid(), type: 'TENSION',
+    text: 'Performance increases, but independent learning may not.',
+    note: '', position: { x: 0, y: 0 },
+  });
+
+  // Ask to be argued with. The ladder returns a challenge, and a challenge is
+  // actionable, so the route raises a proposal alongside the move.
+  const argued = await post<View & { move: { kind: string }; proposalId?: string }>(
+    `/projects/${id}/coach`,
+    { objectId: tension, argue: true, provider: 'static' },
+  );
+  if (argued.json.move.kind === 'challenge') ok('the coach objects', 'kind=challenge');
+  else bad('the coach objects', `kind=${argued.json.move.kind}`);
+
+  const proposalId = argued.json.proposalId;
+  if (proposalId === undefined) { bad('the objection is actionable', 'no proposal raised'); return; }
+  ok('the objection is actionable', 'proposal raised, status open');
+
+  const raised = argued.json.state.proposals[proposalId];
+  if (raised?.suggestedType === 'CHALLENGE' && raised.status === 'open') {
+    ok('it proposes a CHALLENGE and waits');
+  } else {
+    bad('it proposes a CHALLENGE and waits', `got ${raised?.suggestedType} / ${raised?.status}`);
+  }
+
+  // The one thing the coach may not do with its own proposal.
+  await refuse('the coach accepting its own proposal', id, 'coach', 'proposal.accepted', {
+    proposalId, objectId: uuid(),
+  });
+
+  // Accepting with no words is refused by the route, not just by the form.
+  const empty = await post<View>(`/projects/${id}/proposals/${proposalId}/accept`, {
+    text: '   ', relation: 'challenges',
+  });
+  if (empty.status === 422) ok('REFUSED accepting without writing anything', empty.json.invariant ?? '');
+  else bad('REFUSED accepting without writing anything', `expected 422, got ${empty.status}`);
+
+  // A relation outside the eight is refused too: the student picks, from a list.
+  const offVocab = await post<View>(`/projects/${id}/proposals/${proposalId}/accept`, {
+    text: 'A reading of my own.', relation: 'reveals',
+  });
+  if (offVocab.status === 422) ok('REFUSED a relation outside the vocabulary', offVocab.json.invariant ?? '');
+  else bad('REFUSED a relation outside the vocabulary', `expected 422, got ${offVocab.status}`);
+
+  // The student answers it in their own words.
+  const mine = 'The cohort changed between the two assignments, which the speed reading ignores.';
+  const accepted = await post<View>(`/projects/${id}/proposals/${proposalId}/accept`, {
+    text: mine, relation: 'challenges',
+  });
+  if (accepted.status !== 200) { bad('accepting the proposal', `status ${accepted.status}`); return; }
+
+  const proposal = accepted.json.state.proposals[proposalId];
+  const answer = proposal?.acceptedAs === null || proposal?.acceptedAs === undefined
+    ? undefined
+    : accepted.json.state.thoughts[proposal.acceptedAs];
+
+  if (answer?.text === mine) ok('the thought is the student\u2019s words', 'verbatim');
+  else bad('the thought is the student\u2019s words', 'text did not match');
+
+  if (answer?.type === 'CHALLENGE') ok('the type is the one the coach proposed', 'CHALLENGE');
+  else bad('the type is the one the coach proposed', `got ${answer?.type}`);
+
+  if (!JSON.stringify(answer ?? {}).includes(raised?.rationale.slice(0, 20) ?? '@@'))
+    ok('the coach\u2019s rationale is not in the thought');
+  else bad('the coach\u2019s rationale is not in the thought', 'rationale leaked into the node');
+
+  const wired = Object.values(accepted.json.state.relations)
+    .some((r) => r.relation === 'challenges' && !r.removed);
+  if (wired) ok('the objection is wired to what it contests', 'challenges');
+  else bad('the objection is wired to what it contests', 'no challenges edge');
+
+  if (proposal?.status === 'accepted') ok('the proposal closes only once the thought exists');
+  else bad('the proposal closes', `status ${proposal?.status}`);
+
+  // Accepting twice is refused, and so is accepting after a dismissal.
+  const again = await post<View>(`/projects/${id}/proposals/${proposalId}/accept`, {
+    text: 'A second answer.', relation: 'challenges',
+  });
+  if (again.status === 422) ok('REFUSED accepting the same proposal twice', again.json.invariant ?? '');
+  else bad('REFUSED accepting twice', `status ${again.status}`);
+
+  const second = await post<View & { proposalId?: string }>(
+    `/projects/${id}/coach`,
+    { objectId: tension, argue: true, provider: 'static' },
+  );
+  const dismissId = second.json.proposalId;
+  if (dismissId === undefined) { bad('a second objection is raised', 'none'); return; }
+
+  const dismissed = await post<View>(`/projects/${id}/proposals/${dismissId}/dismiss`);
+  if (dismissed.json.state.proposals[dismissId]?.status === 'dismissed') {
+    ok('declining is recorded rather than erased', 'status dismissed');
+  } else {
+    bad('declining is recorded', 'status did not change');
+  }
+
+  const afterDismiss = await post<View>(`/projects/${id}/proposals/${dismissId}/accept`, {
+    text: 'Changed my mind.', relation: 'challenges',
+  });
+  if (afterDismiss.status === 422) ok('REFUSED accepting a dismissed proposal', afterDismiss.json.invariant ?? '');
+  else bad('REFUSED accepting a dismissed proposal', `status ${afterDismiss.status}`);
+
+  const record = accepted.json.record;
+  if (record['proposalsRaised'] === 1 && record['proposalsAccepted'] === 1) {
+    ok('the record counts raised against accepted', 'no judgment about the choice');
+  } else {
+    bad('the record counts proposals', JSON.stringify(record));
+  }
+}
+
 async function main(): Promise<void> {
   console.log(`\ncoral end-to-end  ${BASE}\n`);
 
   await framingWalk();
+  await proposalPath();
 
 
   console.log('project');

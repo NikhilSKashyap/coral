@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   REFINEMENT_CHECKS, SPINE, SPINE_RELATION, SPINE_STAGES,
-  coachMoves, currentStage, establishedPieces, spineOf, spineProgress,
+  coachMoves, currentStage, establishedPieces, openProposals, spineOf, spineProgress,
   type CoachMove, type ObjectId,
 } from '@coral/core';
 import { useStudio } from './store.js';
@@ -28,6 +28,10 @@ export default function FramingView() {
   const select = useStudio((s) => s.select);
   const busy = useStudio((s) => s.busy);
   const role = useStudio((s) => s.role);
+  const providers = useStudio((s) => s.providers);
+  const provider = useStudio((s) => s.provider);
+  const refreshProviders = useStudio((s) => s.refreshProviders);
+  const lastMove = useStudio((s) => s.lastMove);
 
   const spine = useMemo(() => spineOf(state), [state]);
   const stage = currentStage(state);
@@ -38,6 +42,7 @@ export default function FramingView() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   useEffect(() => { setDraft(''); }, [stage]);
+  useEffect(() => { void refreshProviders(); }, [refreshProviders]);
 
   const movesFor = (id: ObjectId): CoachMove[] =>
     coachMoves(state).filter((m) => m.targetObjectId === id);
@@ -79,6 +84,21 @@ export default function FramingView() {
           yours.
         </p>
 
+        <p className="empty" style={{ maxWidth: '62ch' }}>
+          Help on this walk comes from{' '}
+          <strong style={{ color: 'var(--text-2)' }}>
+            {providers.find((p) => p.id === provider)?.label ?? provider}
+          </strong>
+          {provider === 'static'
+            ? ' — no model, no network, and nothing billed.'
+            : ' — your own sign-in, billed to you by it. Switch to the built-in ladder in the Coach tab to work for free.'}
+          {lastMove?.fellBackFrom !== undefined && (
+            <span style={{ color: 'var(--brand)' }}>
+              {' '}Last move fell back to the ladder: {lastMove.reason}
+            </span>
+          )}
+        </p>
+
         {/* --- stages already written ---------------------------------- */}
         {SPINE_STAGES.map((s) => {
           const t = spine[s];
@@ -111,7 +131,7 @@ export default function FramingView() {
                 <button
                   className="btn ghost"
                   disabled={busy || rung >= 3}
-                  onClick={() => void ask(t.objectId, { escalate: true, provider: 'static' })}
+                  onClick={() => void ask(t.objectId, { escalate: true })}
                   title={rung >= 3 ? 'This is the last rung. There is nothing further to give.' : undefined}
                 >
                   {rung >= 3 ? 'No further help' : rung === 2 ? 'Show a sentence frame' : 'More help'}
@@ -119,7 +139,7 @@ export default function FramingView() {
                 <button
                   className="btn ghost"
                   disabled={busy}
-                  onClick={() => void ask(t.objectId, { argue: true, provider: 'static' })}
+                  onClick={() => void ask(t.objectId, { argue: true })}
                 >
                   Argue with me
                 </button>
@@ -134,6 +154,15 @@ export default function FramingView() {
                   A frame is the last thing the coach has. The sentence is still yours to finish.
                 </span>
               )}
+
+              {openProposals(state)
+                .filter((p) => p.targetObjectId === t.objectId)
+                .map((p) => (
+                  <span key={p.proposalId} className="empty" style={{ color: 'var(--brand)' }}>
+                    An objection is open against this. Answer it in the Coach tab — it becomes a
+                    thought of yours on the map, not a note in a thread.
+                  </span>
+                ))}
             </div>
           );
         })}

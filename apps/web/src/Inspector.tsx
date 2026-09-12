@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
   RELATIONS, THOUGHT_TYPES, canBackEvidence, coachMoves, hintLevelFor, liveThoughts,
-  type CommentId, type ObjectId, type PassageId,
+  openProposals,
+  type CommentId, type ObjectId, type PassageId, type Proposal,
   type Relation, type RelationId, type SnapshotId, type Source, type ThoughtType,
   type VersionId,
 } from '@coral/core';
@@ -324,6 +325,7 @@ function CoachTab() {
   const thought = selected === null ? undefined : state.thoughts[selected];
   const rung = selected === null ? 0 : hintLevelFor(state, selected);
   const moves = coachMoves(state);
+  const open = openProposals(state);
   const active = providers.find((p) => p.id === provider);
 
   return (
@@ -409,6 +411,17 @@ function CoachTab() {
         </>
       )}
 
+      {open.length > 0 && (
+        <div className="divide" style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span className="eyebrow">On the table</span>
+          <p className="empty" style={{ marginTop: -4 }}>
+            The coach named a kind of thought. Writing it is yours — a suggestion does not
+            become a node until you put words in it.
+          </p>
+          {open.map((p) => <ProposalCard key={p.proposalId} proposal={p} />)}
+        </div>
+      )}
+
       {moves.length > 0 && (
         <div className="thread divide" style={{ paddingTop: 12 }}>
           <span className="eyebrow">Thread</span>
@@ -421,6 +434,91 @@ function CoachTab() {
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * One proposal, and the two things a student can do with it.
+ *
+ * The type comes from the coach and the relation defaults to whatever fits the
+ * kind, but both the sentence and the final choice of relation are the
+ * student's. Accepting is disabled until something is written, and the server
+ * refuses an empty accept regardless of what the form allows.
+ */
+function ProposalCard({ proposal }: { proposal: Proposal }) {
+  const state = useStudio((s) => s.state);
+  const busy = useStudio((s) => s.busy);
+  const accept = useStudio((s) => s.acceptProposal);
+  const dismissProposal = useStudio((s) => s.dismissProposal);
+
+  const [text, setText] = useState('');
+  const [relation, setRelation] = useState<Relation>(
+    proposal.kind === 'challenge' ? 'challenges' : 'suggests',
+  );
+
+  const target = proposal.targetObjectId === null
+    ? undefined
+    : state.thoughts[proposal.targetObjectId];
+
+  return (
+    <div className="row" style={{ borderColor: 'var(--coach)' }}>
+      <div className="hd">
+        <span className="eyebrow" style={{ color: 'var(--coach)' }}>
+          {proposal.kind === 'challenge' ? 'objection to answer' : 'suggested branch'}
+          {' \u00b7 '}{proposal.suggestedType.toLowerCase()}
+        </span>
+      </div>
+      <p style={{ color: 'var(--text)' }}>{proposal.rationale}</p>
+      {target !== undefined && (
+        <p style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
+          against: {target.text.slice(0, 90)}{target.text.length > 90 ? '\u2026' : ''}
+        </p>
+      )}
+
+      <textarea
+        className="field"
+        rows={3}
+        value={text}
+        placeholder={proposal.kind === 'challenge'
+          ? 'Answer the objection in your own words.'
+          : `Write the ${proposal.suggestedType.toLowerCase()} yourself.`}
+        onChange={(e) => setText(e.target.value)}
+        aria-label={`Write the ${proposal.suggestedType.toLowerCase()}`}
+      />
+
+      <label className="lbl">
+        <span className="eyebrow">How it relates</span>
+        <select
+          className="field"
+          value={relation}
+          onChange={(e) => setRelation(e.target.value as Relation)}
+        >
+          {RELATIONS.map((r) => (
+            <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>
+          ))}
+        </select>
+      </label>
+
+      <div className="acts">
+        <button
+          className="btn primary"
+          disabled={busy || text.trim() === ''}
+          onClick={() => void accept(proposal.proposalId, text, relation)}
+        >
+          Write it myself
+        </button>
+        <button
+          className="btn ghost"
+          disabled={busy}
+          onClick={() => void dismissProposal(proposal.proposalId)}
+        >
+          Not this
+        </button>
+      </div>
+      <span className="empty">
+        Declining is recorded too. Nothing is deleted.
+      </span>
+    </div>
   );
 }
 

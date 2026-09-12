@@ -1,6 +1,6 @@
 import type { CommentId, ObjectId } from './ids.js';
 import type {
-  CoachMove, Comment, ProjectState, RelationEdge, Thought, ThoughtType, ThoughtVersion,
+  CoachMove, Comment, ProjectState, Proposal, RelationEdge, Thought, ThoughtType, ThoughtVersion,
 } from './types.js';
 
 export const thought = (s: ProjectState, id: ObjectId): Thought | undefined => s.thoughts[id];
@@ -75,6 +75,41 @@ export function claimsWithoutEvidence(s: ProjectState): Thought[] {
       const from = s.thoughts[edge.from];
       return edge.relation === 'supports' && from?.type === 'EVIDENCE';
     }),
+  );
+}
+
+/**
+ * Proposals the student has not yet ruled on.
+ *
+ * The coach detects; it does not accept. A proposal sits here until a student
+ * either writes the thought themselves or dismisses it, which is invariant iii
+ * made visible rather than merely guarded.
+ */
+export const openProposals = (s: ProjectState): Proposal[] =>
+  Object.values(s.proposals).filter((p) => p.status === 'open');
+
+export const proposalsFor = (s: ProjectState, id: ObjectId): Proposal[] =>
+  Object.values(s.proposals).filter((p) => p.targetObjectId === id);
+
+/** Objections the coach has raised. The one move where its prose is its own. */
+export const challengesRaised = (s: ProjectState): CoachMove[] =>
+  coachMoves(s).filter((m) => m.kind === 'challenge');
+
+/**
+ * A challenge the student has not answered with a thought of their own.
+ *
+ * An objection only does its work once it is argued with, so an unanswered one
+ * is a structural gap the coach may name.
+ */
+export function unansweredChallenges(s: ProjectState): CoachMove[] {
+  const answered = new Set(
+    Object.values(s.proposals)
+      .filter((p) => p.kind === 'challenge' && p.status === 'accepted')
+      .map((p) => p.targetObjectId)
+      .filter((id): id is ObjectId => id !== null),
+  );
+  return challengesRaised(s).filter(
+    (m) => m.targetObjectId !== null && !answered.has(m.targetObjectId),
   );
 }
 

@@ -4,7 +4,7 @@ import {
 } from '@coral/agent';
 import {
   hintLevelFor,
-  type HintLevel, type ObjectId, type ProjectId,
+  type HintLevel, type MoveId, type ObjectId, type ProjectId, type ProposalId,
 } from '@coral/core';
 import { appendEvent, loadProject, type ProjectView } from './repo.js';
 
@@ -25,6 +25,8 @@ export interface CoachResponse extends ProjectView {
   fellBackFrom?: ProviderId;
   reason?: string;
   rung: HintLevel;
+  /** Set when the move left something for the student to rule on. */
+  proposalId?: ProposalId;
 }
 
 /**
@@ -57,32 +59,50 @@ export async function coach(
   );
 
   const move = outcome.move;
-  const next =
-    move.kind === 'propose_branch'
-      ? await appendEvent(projectId, {
-          actor: 'coach',
-          type: 'proposal.raised',
-          payload: {
-            proposalId: crypto.randomUUID(),
-            kind: 'branch',
-            suggestedType: move.suggestedType,
-            targetObjectId: body.objectId,
-            // The coach's reason for suggesting it. Never the thought itself.
-            rationale: move.body,
-          },
-        })
-      : await appendEvent(projectId, {
-          actor: 'coach',
-          type: 'coach.moved',
-          payload: {
-            moveId: crypto.randomUUID(),
-            kind: move.kind,
-            targetObjectId: body.objectId,
-            hintLevel: rung,
-            body: move.body,
-            flag: move.flag ?? null,
-          },
-        });
+  const moveId = crypto.randomUUID() as MoveId;
+
+  // Every move lands in the thread, including the two that also raise a
+  // proposal. The thread is the record of what the coach said; a proposal is the
+  // separate question of what the student does about it.
+  let next = await appendEvent(projectId, {
+    actor: 'coach',
+    type: 'coach.moved',
+    payload: {
+      moveId,
+      kind: move.kind,
+      targetObjectId: body.objectId,
+      hintLevel: rung,
+      body: move.body,
+      flag: move.flag ?? null,
+    },
+  });
+
+  /**
+   * Two kinds leave something to act on.
+   *
+   * `propose_branch` names a type the student might write next. `challenge`
+   * states an objection, and an objection that cannot be answered on the map is
+   * just a remark — so it too becomes a proposal, for a CHALLENGE thought the
+   * student writes in their own words.
+   *
+   * Neither payload carries a sentence for the student's thought. The rationale
+   * is the coach's reason for suggesting it, which is its own prose.
+   */
+  let proposalId: ProposalId | undefined;
+  if (move.kind === 'propose_branch' || move.kind === 'challenge') {
+    proposalId = crypto.randomUUID() as ProposalId;
+    next = await appendEvent(projectId, {
+      actor: 'coach',
+      type: 'proposal.raised',
+      payload: {
+        proposalId,
+        kind: move.kind === 'challenge' ? 'challenge' : 'branch',
+        suggestedType: move.kind === 'challenge' ? 'CHALLENGE' : move.suggestedType,
+        targetObjectId: body.objectId,
+        rationale: move.body,
+      },
+    });
+  }
 
   return {
     ...next,
@@ -91,5 +111,6 @@ export async function coach(
     ...(outcome.fellBackFrom === undefined ? {} : { fellBackFrom: outcome.fellBackFrom }),
     ...(outcome.reason === undefined ? {} : { reason: outcome.reason }),
     rung,
+    ...(proposalId === undefined ? {} : { proposalId }),
   };
 }

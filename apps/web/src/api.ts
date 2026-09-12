@@ -1,5 +1,6 @@
 import type {
-  Actor, DomainEvent, ObservableRecord, ProjectId, ProjectState, SpineStage,
+  Actor, DomainEvent, ObservableRecord, ProjectId, ProjectState, ProposalId,
+  Relation, SpineStage,
 } from '@coral/core';
 
 const BASE = import.meta.env['VITE_API'] ?? 'http://localhost:8787';
@@ -69,6 +70,25 @@ export const writeStage = (
   text: string,
 ): Promise<ProjectView> => call(`/projects/${id}/spine`, json({ stage, text }));
 
+/**
+ * Accept a proposal by writing the thought it stands for.
+ *
+ * The text is required by the route, not just by the form, so there is no way to
+ * accept a suggestion without having written something.
+ */
+export const acceptProposal = (
+  id: ProjectId,
+  proposalId: ProposalId,
+  body: { text: string; relation: Relation },
+): Promise<ProjectView> =>
+  call(`/projects/${id}/proposals/${proposalId}/accept`, json(body));
+
+export const dismissProposal = (
+  id: ProjectId,
+  proposalId: ProposalId,
+): Promise<ProjectView> =>
+  call(`/projects/${id}/proposals/${proposalId}/dismiss`, { method: 'POST' });
+
 /** Assemble the Problem Frame from objects that already exist. Nothing is generated. */
 export const draftFrame = (
   id: ProjectId,
@@ -116,6 +136,8 @@ export interface CoachResponse extends ProjectView {
   fellBackFrom?: ProviderId;
   reason?: string;
   rung: number;
+  /** Set when the move left something for the student to rule on. */
+  proposalId?: ProposalId;
 }
 
 /** Asks the student's own agent for one move. Coral holds no credential. */

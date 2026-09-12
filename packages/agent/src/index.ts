@@ -49,13 +49,16 @@ export interface CoachOutcome {
 export async function requestMove(
   request: CoachRequest,
   preferred: ProviderId = 'claude-code',
+  // Injectable so the floor can be tested with a provider that misbehaves on
+  // purpose. Production never passes it.
+  providers: readonly CoachProvider[] = ORDER,
 ): Promise<CoachOutcome> {
   const fallback = new StaticProvider();
   if (preferred === 'static') {
     return { move: await fallback.move(request), provider: 'static' };
   }
 
-  const provider = ORDER.find((p) => p.id === preferred);
+  const provider = providers.find((p) => p.id === preferred);
   if (provider === undefined || !(await provider.available())) {
     return {
       move: await fallback.move(request),

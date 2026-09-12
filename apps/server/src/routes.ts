@@ -1,10 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import {
   EVENT_TYPES, RELATIONS, SOURCE_ACCESS, THOUGHT_TYPES, commentDrift,
-  type CommentId, type ProjectId,
+  type CommentId, type ProjectId, type ProposalId,
 } from '@coral/core';
 import { coach, detectProviders, type CoachRequestBody } from './coach.js';
 import { StageOutOfOrder, draftProblemFrame, writeStage, type StageWriteBody } from './spine.js';
+import {
+  ProposalRefused, acceptProposal, dismissProposal, type AcceptProposalBody,
+} from './proposals.js';
 import { FIXTURE_PAPERS } from './fixtures.js';
 import { appendEvent, createProject, listProjects, loadProject } from './repo.js';
 
@@ -32,6 +35,48 @@ export async function routes(app: FastifyInstance): Promise<void> {
    * and the two rung-zero moves that answer it. Out-of-order stages are refused
    * here rather than silently reordered, because the sequence is the lesson.
    */
+  /**
+   * Accept a proposal by writing the thought it stands for.
+   *
+   * The only route that can satisfy invariant iii. There is no variant of it
+   * that accepts without text, which is why a proposal cannot become a thought
+   * the student did not write.
+   */
+  app.post<{ Params: { id: string; proposalId: string }; Body: AcceptProposalBody }>(
+    '/projects/:id/proposals/:proposalId/accept',
+    async (request, reply) => {
+      try {
+        return await acceptProposal(
+          request.params.id as ProjectId,
+          request.params.proposalId as ProposalId,
+          request.body,
+        );
+      } catch (error) {
+        if (error instanceof ProposalRefused) {
+          return reply.status(422).send({ invariant: error.invariant, message: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string; proposalId: string } }>(
+    '/projects/:id/proposals/:proposalId/dismiss',
+    async (request, reply) => {
+      try {
+        return await dismissProposal(
+          request.params.id as ProjectId,
+          request.params.proposalId as ProposalId,
+        );
+      } catch (error) {
+        if (error instanceof ProposalRefused) {
+          return reply.status(422).send({ invariant: error.invariant, message: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
   app.post<{ Params: { id: string }; Body: StageWriteBody }>(
     '/projects/:id/spine',
     async (request, reply) => {

@@ -3,11 +3,11 @@ import { spineComplete } from '@coral/core';
 import {
   initialState,
   type Actor, type DomainEvent, type ObjectId, type ObservableRecord,
-  type ProjectId, type ProjectState, type SpineStage,
+  type ProjectId, type ProjectState, type ProposalId, type Relation, type SpineStage,
 } from '@coral/core';
 import {
-  Refused, askCoach, createProject, draftFrame, emit, listProjects, listProviders, loadDrift,
-  loadProject, searchLiterature, writeStage,
+  Refused, acceptProposal, askCoach, createProject, dismissProposal, draftFrame, emit,
+  listProjects, listProviders, loadDrift, loadProject, searchLiterature, writeStage,
   type CoachResponse, type Drift, type ProjectSummary, type ProviderId, type ProviderStatus,
 } from './api.js';
 
@@ -34,6 +34,8 @@ interface Studio {
   setProvider: (provider: ProviderId) => void;
   ask: (objectId: ObjectId, opts: { escalate?: boolean; argue?: boolean; provider?: ProviderId }) => Promise<void>;
   writeStage: (stage: SpineStage, text: string) => Promise<boolean>;
+  acceptProposal: (proposalId: ProposalId, text: string, relation: Relation) => Promise<boolean>;
+  dismissProposal: (proposalId: ProposalId) => Promise<boolean>;
   draftFrame: (answers: Record<string, string>) => Promise<boolean>;
   newProject: (title: string, group: string) => Promise<void>;
   open: (id: ProjectId) => Promise<void>;
@@ -114,6 +116,52 @@ export const useStudio = create<Studio>((set, get) => ({
       const view = await writeStage(projectId, stage, text);
       set({ state: view.state, events: view.events, record: view.record, busy: false });
       await get().refreshProjects();
+      return true;
+    } catch (error) {
+      set({
+        refusal: {
+          invariant: error instanceof Refused ? error.invariant : 'network',
+          message: error instanceof Error ? error.message : String(error),
+        },
+        busy: false,
+      });
+      return false;
+    }
+  },
+
+  /**
+   * Rule on a proposal.
+   *
+   * Accepting takes the student's own words; there is no button anywhere that
+   * turns a suggestion into a thought without them.
+   */
+  acceptProposal: async (proposalId, text, relation) => {
+    const { projectId } = get();
+    if (projectId === null || text.trim() === '') return false;
+    set({ busy: true, refusal: null });
+    try {
+      const view = await acceptProposal(projectId, proposalId, { text: text.trim(), relation });
+      set({ state: view.state, events: view.events, record: view.record, busy: false });
+      return true;
+    } catch (error) {
+      set({
+        refusal: {
+          invariant: error instanceof Refused ? error.invariant : 'network',
+          message: error instanceof Error ? error.message : String(error),
+        },
+        busy: false,
+      });
+      return false;
+    }
+  },
+
+  dismissProposal: async (proposalId) => {
+    const { projectId } = get();
+    if (projectId === null) return false;
+    set({ busy: true, refusal: null });
+    try {
+      const view = await dismissProposal(projectId, proposalId);
+      set({ state: view.state, events: view.events, record: view.record, busy: false });
       return true;
     } catch (error) {
       set({

@@ -1,5 +1,5 @@
 import type { DomainEvent } from './events.js';
-import { claimsWithoutEvidence, thoughtsOfType } from './selectors.js';
+import { claimsWithoutEvidence, openProposals, thoughtsOfType } from './selectors.js';
 import type { ProjectState } from './types.js';
 
 /**
@@ -24,6 +24,17 @@ export interface ObservableRecord {
   questionRevisions: number;
   coachMovesOffered: number;
   hintsRequested: number;
+  /**
+   * What the student did with what the coach suggested.
+   *
+   * Raised against accepted and dismissed is an observable of judgment being
+   * exercised over a suggestion, which is a different thing from compliance. It
+   * is still a count: nothing here says whether the student chose well.
+   */
+  proposalsRaised: number;
+  proposalsAccepted: number;
+  proposalsDismissed: number;
+  proposalsOpen: number;
 }
 
 export function observableRecord(
@@ -46,6 +57,9 @@ export function observableRecord(
   let questionRevisions = 0;
   let coachMovesOffered = 0;
   let hintsRequested = 0;
+  let proposalsRaised = 0;
+  let proposalsAccepted = 0;
+  let proposalsDismissed = 0;
 
   for (const event of events) {
     switch (event.type) {
@@ -68,6 +82,15 @@ export function observableRecord(
         coachMovesOffered += 1;
         if (event.payload.hintLevel > 0) hintsRequested += 1;
         break;
+      case 'proposal.raised':
+        proposalsRaised += 1;
+        break;
+      case 'proposal.accepted':
+        proposalsAccepted += 1;
+        break;
+      case 'proposal.dismissed':
+        proposalsDismissed += 1;
+        break;
       default:
         break;
     }
@@ -87,5 +110,9 @@ export function observableRecord(
     questionRevisions,
     coachMovesOffered,
     hintsRequested,
+    proposalsRaised,
+    proposalsAccepted,
+    proposalsDismissed,
+    proposalsOpen: openProposals(state).length,
   };
 }

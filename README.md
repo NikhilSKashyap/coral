@@ -34,9 +34,9 @@ Open http://localhost:5173, press **New question**, and build a map.
 ## Testing it
 
 ```bash
-pnpm test                                   # 34 unit tests over the invariants
+pnpm test                                   # 69 unit tests: 45 over the invariants, 24 over the agent boundary
 pnpm --filter @coral/server test:db        # the five guards Postgres enforces
-pnpm --filter @coral/server test:e2e       # 56 checks over a whole session
+pnpm --filter @coral/server test:e2e       # 71 checks over a whole session
 ```
 
 The end-to-end script drives a full session against a running server: a student
@@ -45,10 +45,13 @@ from a passage, a checkpoint is submitted, an instructor comments, the student
 revises twice. Lines marked `REFUSED` must fail, with a 422 and the name of the
 invariant that stopped them. A run where everything succeeds is a failing run.
 
-Three things in the interface exist to be tried rather than read:
+Four things in the interface exist to be tried rather than read:
 
 - **Coach tab → "Let the coach write a thought"** is refused in front of you, and
   names the invariant.
+- **Coach tab → "Argue with this thought"** produces an objection and leaves it
+  **on the table**. The only button that clears it is *Write it myself*, and it
+  stays disabled until you have written something.
 - **Sources tab** returns four papers at different access levels. Two carry a
   retrievable passage and two do not, so the evidence gate can be tried against
   both. A paywalled source becomes usable only after **Upload the paper**.
@@ -84,6 +87,34 @@ slice: the ladder either teaches before it costs anything, or it does not teach.
 - The **Problem Frame** is a template fill over objects that already exist. The
   question is your thought word for word, and a refinement prompt you did not
   answer stays a gap rather than becoming prose.
+
+## The coach suggests a kind of thought; you write the sentence
+
+Two of the eight moves leave something to act on, and both go through the same
+gate. `propose_branch` names a type of thought that might come next.
+`challenge` states an objection — the one move where the prose is the coach's,
+because an objection is something to argue with rather than something you wrote.
+
+Either way the result is a **proposal**, and a proposal is not a node. It sits
+open in the Coach tab under *On the table* until you rule on it:
+
+- **Write it myself** takes your sentence and your choice of relation, creates
+  the thought under your name, and closes the proposal. The type came from the
+  coach; every word came from you. The new thought records which move prompted
+  it, so the map can show where a branch came from.
+- **Not this** records the decision. Nothing is deleted, and the instructor's
+  panel counts proposals raised against accepted and dismissed — which is an
+  observable of judgment being exercised, not of compliance.
+
+There is no route on the server that turns a proposal into a thought without
+text arriving from the student in the same request. Accepting with an empty
+body is a 422 naming `iii.proposal`, as is accepting twice, accepting one that
+was dismissed, or picking a relation outside the eight.
+
+That is also what makes a challenge answerable. An objection that can only be
+read in a thread is a remark; here it becomes a CHALLENGE node wired to the
+thought it contests, so several competing objections can sit on one claim at
+once and none of them is a mode the project is in.
 
 ## The coach runs on your own subscription
 
@@ -164,6 +195,9 @@ system implies text it never retrieved has nowhere to live.
 | `POST /projects/:id/events` | the only write path; 422 carries the invariant name |
 | `POST /projects/:id/spine` | one stage of the framing walk, with its relation and its two coach moves |
 | `POST /projects/:id/frame` | assemble the Problem Frame from existing objects |
+| `POST /projects/:id/coach` | one move from the student's own agent, written through the guards |
+| `POST /projects/:id/proposals/:pid/accept` | the student writes the thought a proposal stands for |
+| `POST /projects/:id/proposals/:pid/dismiss` | decline it, on the record |
 | `POST /projects/:id/search` | fixture literature until real retrieval lands |
 | `GET /projects/:id/drift` | how far each commented object has moved since review |
 
@@ -180,9 +214,25 @@ be put in front of a student before a single call is paid for. The static ladder
 the agent falls back to now reads the same `SPINE` table, so there is one copy of
 the hints rather than two that drift.
 
-**Next.** Slice 02 puts a real coach behind the framing ladder and the map's
-move buttons — the adapter already exists, and this is the prompt work. Slice 03
-replaces the literature fixture with retrieval.
+**Done (slice 02).** The coach under constraint. The prompt now carries what a
+thought type is *for* and which stage the walk owes next, both read from `SPINE`,
+so a move lands on the thing the stage exists to teach. The framing ladder is no
+longer pinned to the built-in copy: it uses whichever provider is selected, and
+says which one and who is paying. Proposals got the path they were missing —
+`propose_branch` and `challenge` both raise one, and the only way through it is
+the student writing the sentence.
+
+The slice's claim is that the model cannot write a student's thought even when
+asked, and it is tests rather than prompt text: 24 of them over the agent
+boundary, asserting that the schema has no field a thought could arrive in, that
+fields outside it are dropped rather than passed through, that a reply cannot
+talk its way into a rung, and that a provider which errors, returns nonsense or
+is missing lands on the ladder instead of on the student.
+
+**Next.** Slice 03 replaces the literature fixture with retrieval — OpenAlex,
+Semantic Scholar, Crossref and Unpaywall — and ships PDF upload with it, since
+the evidence gate blocks paywalled work without it.
 
 Known gaps: literature search is a fixture, not retrieval; there is no auth, and
-the three seats are fixed rows.
+the three seats are fixed rows. The Codex adapter is written but still
+unverified, since Codex is not installed here.

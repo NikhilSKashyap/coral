@@ -1,5 +1,6 @@
 import {
-  ancestorsOf, childrenOf, claimsWithoutEvidence, parentsOf, versionsOf,
+  SPINE, ancestorsOf, childrenOf, claimsWithoutEvidence, currentStage, isSpineStage,
+  openProposals, parentsOf, unansweredChallenges, versionsOf,
   type ObjectId, type ProjectState,
 } from '@coral/core';
 
@@ -35,6 +36,12 @@ export function renderContext(state: ProjectState, selected: ObjectId): string {
   lines.push('THE THOUGHT THEY ARE WORKING ON');
   lines.push(`  type: ${current.type}`);
   lines.push(`  text: ${current.text}`);
+  // What this kind of thought is for, quoted from the framing spine. Without it
+  // a model reads a TENSION as a topic and asks a topical question; with it, the
+  // move lands on the thing the stage exists to teach.
+  if (isSpineStage(current.type)) {
+    lines.push(`  what a ${current.type.toLowerCase()} is for: ${SPINE[current.type].guidance}`);
+  }
   if (current.note !== '') lines.push(`  their note: ${current.note}`);
   lines.push(`  revisions so far: ${versionsOf(state, selected).length}`);
 
@@ -60,6 +67,14 @@ export function renderContext(state: ProjectState, selected: ObjectId): string {
       if (t === undefined) continue;
       lines.push(`  [${t.type}] (${edge.relation.replace(/_/g, ' ')}) ${t.text}`);
     }
+    lines.push('');
+  }
+
+  const stage = currentStage(state);
+  if (stage !== null) {
+    lines.push('WHERE THEY ARE IN THE FRAMING WALK');
+    lines.push(`  the next stage they owe is ${stage}: ${SPINE[stage].prompt}`);
+    lines.push('  do not write that thought for them, and do not name the stage as an instruction');
     lines.push('');
   }
 
@@ -107,6 +122,22 @@ export function structuralGaps(state: ProjectState): string[] {
     if (childrenOf(state, thought.objectId).length === 0) {
       gaps.push(`unresolved_challenge: "${thought.text}" has not been answered`);
     }
+  }
+
+  // An objection the coach already raised and the student has not argued with.
+  // Worth naming, and worth not raising a second time.
+  for (const move of unansweredChallenges(state)) {
+    const target = move.targetObjectId === null ? undefined : state.thoughts[move.targetObjectId];
+    if (target === undefined) continue;
+    gaps.push(`unresolved_challenge: you already objected to "${target.text}" and it stands unanswered`);
+  }
+
+  // Suggestions already on the table. Repeating one is noise, and the student
+  // declining one is a decision the next move should respect.
+  for (const proposal of openProposals(state)) {
+    gaps.push(
+      `open_proposal: a ${proposal.suggestedType.toLowerCase()} is already proposed and undecided`,
+    );
   }
 
   return gaps;
