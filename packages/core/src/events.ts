@@ -221,11 +221,17 @@ export const EVENT_TYPES = [
 
 /**
  * Events that write text the student owns. Only a student may emit one.
+ *
  * `evidence.created` is here because the interpretation and the warrant are the
- * student's reasoning, not the paper's.
+ * student's reasoning, not the paper's. `thought.retyped` is here because
+ * changing what a thought *is* changes what the student is committed to: a
+ * coach that could turn an idea into a claim would be asserting on their behalf,
+ * which is invariant i wearing a different hat. It mints a version row either
+ * way, and the database says the same thing with a check constraint.
  */
 export const STUDENT_AUTHORED_EVENTS = [
-  'thought.created', 'thought.revised', 'evidence.created', 'student.replied',
+  'thought.created', 'thought.revised', 'thought.retyped',
+  'evidence.created', 'student.replied',
 ] as const satisfies readonly DomainEventType[];
 
 /** Events only the coach emits. None of them writes a thought's text. */

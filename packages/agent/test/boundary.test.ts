@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   COACH_MOVE_KINDS, SPINE, THOUGHT_TYPES, initialState,
-  type ObjectId, type ProjectState,
+  type ObjectId, type ProjectState, type Thought,
 } from '@coral/core';
+import {
+  DETECTION_SCHEMA, MalformedDetection, parseDetection, renderCandidates,
+} from '../src/detect.js';
 import { renderContext } from '../src/context.js';
 import { MOVE_SCHEMA, MalformedMove, parseMove } from '../src/move.js';
 import { StaticProvider, type CoachProvider } from '../src/providers.js';
@@ -289,5 +292,92 @@ describe('a passage is data, never instructions', () => {
       assessment: 'advanced',
     });
     expect(Object.keys(obeyed).sort()).toEqual(['body', 'kind']);
+  });
+});
+
+/**
+ * Claim detection is the second, cheaper half of the coach.
+ *
+ * Its schema is narrower than the move schema in the way that matters: a
+ * detection points at a row in a list we rendered, so a model cannot name a
+ * thought that does not exist, and it carries no text, so it cannot propose a
+ * claim of its own authorship.
+ */
+describe('detection points at the student\'s thoughts and writes none', () => {
+  const refs = [
+    { objectId: 'a' as ObjectId, type: 'IDEA', text: 'Early AI assistance narrows hypotheses.' },
+    { objectId: 'b' as ObjectId, type: 'WONDER', text: 'Are they learning more?' },
+    { objectId: 'c' as ObjectId, type: 'CLAIM', text: 'Already a claim.' },
+  ] as unknown as Thought[];
+
+  it('has no field a thought could arrive in', () => {
+    const item = DETECTION_SCHEMA.properties.candidates.items;
+    expect(item.additionalProperties).toBe(false);
+    expect(Object.keys(item.properties).sort()).toEqual(['rationale', 'ref']);
+    expect(item.properties.ref.type).toBe('integer');
+  });
+
+  it('resolves a row number to the thought that was shown', () => {
+    const found = parseDetection({ candidates: [{ ref: 1, rationale: 'It asserts something.' }] }, refs);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.objectId).toBe('a');
+  });
+
+  it('drops a row number that lands on nothing', () => {
+    expect(parseDetection({ candidates: [{ ref: 99, rationale: 'x' }] }, refs)).toHaveLength(0);
+    expect(parseDetection({ candidates: [{ ref: 0, rationale: 'x' }] }, refs)).toHaveLength(0);
+    expect(parseDetection({ candidates: [{ ref: -1, rationale: 'x' }] }, refs)).toHaveLength(0);
+  });
+
+  it('drops a thought that is already a claim', () => {
+    expect(parseDetection({ candidates: [{ ref: 3, rationale: 'It asserts.' }] }, refs)).toHaveLength(0);
+  });
+
+  it('drops a duplicate rather than proposing the same thought twice', () => {
+    const found = parseDetection({
+      candidates: [
+        { ref: 1, rationale: 'It asserts something.' },
+        { ref: 1, rationale: 'It asserts something else.' },
+      ],
+    }, refs);
+    expect(found).toHaveLength(1);
+  });
+
+  it('drops a candidate with no reason given', () => {
+    expect(parseDetection({ candidates: [{ ref: 1, rationale: '   ' }] }, refs)).toHaveLength(0);
+  });
+
+  it('ignores extra fields a model attaches to a candidate', () => {
+    const found = parseDetection({
+      candidates: [{
+        ref: 1, rationale: 'It asserts something.',
+        text: 'A better claim I wrote for them.',
+        assessment: 'advanced',
+      }],
+    }, refs);
+    expect(Object.keys(found[0] ?? {}).sort()).toEqual(['objectId', 'rationale']);
+    expect(JSON.stringify(found)).not.toContain('advanced');
+  });
+
+  it('refuses a reply that is not a candidate list at all', () => {
+    expect(() => parseDetection('sure', refs)).toThrow(MalformedDetection);
+    expect(() => parseDetection({ candidates: 'one' }, refs)).toThrow(MalformedDetection);
+  });
+
+  it('shows the model only the types worth examining, numbered from one', () => {
+    const state = {
+      ...initialState('p-1' as never),
+      thoughts: Object.fromEntries(refs.map((t, i) => [t.objectId, {
+        ...t, currentVersionId: `v${String(i)}`, note: '', position: { x: 0, y: 0 },
+        archived: false, createdAt: `2026-01-0${String(i + 1)}T00:00:00.000Z`,
+      }])),
+    } as unknown as ProjectState;
+
+    const { prompt, refs: shown } = renderCandidates(state);
+    // The CLAIM is not offered; there is nothing to detect about it.
+    expect(shown.map((t) => t.type)).toEqual(['IDEA', 'WONDER']);
+    expect(prompt).toContain('1. [IDEA]');
+    expect(prompt).toContain('2. [WONDER]');
+    expect(prompt).not.toContain('Already a claim');
   });
 });

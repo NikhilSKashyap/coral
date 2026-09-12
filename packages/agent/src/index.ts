@@ -1,3 +1,7 @@
+import type { ProjectState, Thought } from '@coral/core';
+import {
+  parseDetection, renderCandidates, type ClaimCandidate,
+} from './detect.js';
 import { MalformedMove, type CoachMoveResult, type CoachRequest } from './move.js';
 import {
   ClaudeCodeProvider, CodexProvider, StaticProvider,
@@ -5,6 +9,7 @@ import {
 } from './providers.js';
 
 export * from './move.js';
+export * from './detect.js';
 export * from './context.js';
 export * from './constitution.js';
 export * from './providers.js';
@@ -84,4 +89,84 @@ export async function requestMove(
       reason,
     };
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Claim detection                                                     */
+/* ------------------------------------------------------------------ */
+
+export interface DetectionOutcome {
+  candidates: ClaimCandidate[];
+  provider: ProviderId;
+  fellBackFrom?: ProviderId;
+  reason?: string;
+}
+
+/**
+ * Which of the student's thoughts are already doing the work of a claim.
+ *
+ * Same floor as a coaching move, and the floor matters more here: detection is
+ * a convenience, so a missed candidate costs nothing. The student can type a
+ * claim whenever they like. That is why the static detector below is
+ * deliberately shy rather than clever.
+ */
+export async function requestDetection(
+  state: ProjectState,
+  preferred: ProviderId = 'claude-code',
+  providers: readonly CoachProvider[] = ORDER,
+): Promise<DetectionOutcome> {
+  const { prompt, refs } = renderCandidates(state);
+  if (refs.length === 0) return { candidates: [], provider: 'static' };
+
+  if (preferred === 'static') {
+    return { candidates: staticDetect(refs), provider: 'static' };
+  }
+
+  const provider = providers.find((p) => p.id === preferred);
+  // Only the Claude Code adapter has a classifier path. Anything else lands on
+  // the shy detector rather than pretending.
+  if (provider === undefined || !('detect' in provider) || !(await provider.available())) {
+    return {
+      candidates: staticDetect(refs),
+      provider: 'static',
+      fellBackFrom: preferred,
+      reason: `${preferred} cannot classify on this machine`,
+    };
+  }
+
+  try {
+    const raw = await (provider as { detect: (p: string) => Promise<unknown> }).detect(prompt);
+    return { candidates: parseDetection(raw, refs), provider: provider.id };
+  } catch (error) {
+    return {
+      candidates: staticDetect(refs),
+      provider: 'static',
+      fellBackFrom: provider.id,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Claim detection with no model, and deliberately shy.
+ *
+ * A false positive puts a proposal on the board that wastes the student's
+ * attention, so this only flags an IDEA that reads as an assertion: a statement
+ * rather than a question, long enough to be making a point, and carrying a word
+ * that commits to something. It will miss plenty. That is the right trade for a
+ * floor.
+ */
+function staticDetect(refs: readonly Thought[]): ClaimCandidate[] {
+  const commits = /\b(is|are|was|were|does|do|causes?|leads? to|reduces?|increases?|narrows?|improves?|prevents?|means?|implies|shows?)\b/i;
+
+  return refs
+    .filter((t) => t.type === 'IDEA')
+    .filter((t) => !t.text.includes('?'))
+    .filter((t) => (t.text.match(/\S+/g) ?? []).length >= 6)
+    .filter((t) => commits.test(t.text))
+    .slice(0, 2)
+    .map((t) => ({
+      objectId: t.objectId,
+      rationale: 'This states something that could be disagreed with, which is what a claim does.',
+    }));
 }

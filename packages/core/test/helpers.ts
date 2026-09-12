@@ -8,7 +8,12 @@ const ACTOR_SEAT: Record<Actor, number> = { student: 1, coach: 2, instructor: 3 
 
 export const PROJECT = '00000000-0000-4000-9000-000000000001' as ProjectId;
 
-type Body = { type: DomainEvent['type']; payload: unknown };
+type Body = {
+  type: DomainEvent['type'];
+  payload: unknown;
+  /** The coach move this write answers, when a test needs provenance. */
+  promptedBy?: string | null;
+};
 
 /** A small fluent log so tests read like a session rather than like plumbing. */
 export class Log {
@@ -17,7 +22,7 @@ export class Log {
   state: ProjectState = initialState(PROJECT);
   private clock = 0;
 
-  private meta(actor: Actor): EventMeta {
+  private meta(actor: Actor, promptedBy: string | null = null): EventMeta {
     this.clock += 1;
     return {
       id: `00000000-0000-4000-a000-${String(this.clock).padStart(12, '0')}` as EventId,
@@ -26,13 +31,14 @@ export class Log {
       at: new Date(Date.UTC(2026, 0, 1, 0, 0, this.clock)).toISOString(),
       actor,
       actorId: `00000000-0000-4000-b000-${String(ACTOR_SEAT[actor]).padStart(12, '0')}` as ActorId,
-      promptedBy: null,
+      promptedBy: promptedBy as EventMeta['promptedBy'],
     };
   }
 
   /** Append through the real guard path. Throws exactly as the server would. */
   push(actor: Actor, body: Body): this {
-    const event = { ...this.meta(actor), ...body } as DomainEvent;
+    const { promptedBy = null, ...rest } = body;
+    const event = { ...this.meta(actor, promptedBy), ...rest } as DomainEvent;
     this.state = append(this.state, event);
     this.events.push(event);
     return this;
@@ -40,7 +46,8 @@ export class Log {
 
   /** Build an event without appending it, for tests that expect a rejection. */
   draft(actor: Actor, body: Body): DomainEvent {
-    return { ...this.meta(actor), ...body } as DomainEvent;
+    const { promptedBy = null, ...rest } = body;
+    return { ...this.meta(actor, promptedBy), ...rest } as DomainEvent;
   }
 
   id<T extends string>(): T {

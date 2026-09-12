@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ancestorsOf, parentsOf, versionsOf, type ObjectId } from '@coral/core';
+import {
+  ancestorsOf, parentsOf, versionTrail, versionsOf,
+  type DiffSpan, type ObjectId,
+} from '@coral/core';
 import { useStudio, uuid } from './store.js';
 import type { VersionId } from '@coral/core';
 
@@ -39,6 +42,7 @@ export default function FocusView() {
   }
 
   const versions = versionsOf(state, thought.objectId);
+  const trail = versionTrail(state, thought.objectId);
   const ancestors = ancestorsOf(state, thought.objectId);
   const dirty = text !== thought.text || note !== thought.note;
   const editable = role === 'student' && !thought.archived;
@@ -151,21 +155,77 @@ export default function FocusView() {
           <span className="eyebrow">
             Every version is kept. Nothing here is a score.
           </span>
-          {[...versions].reverse().map((v, i) => (
-            <div key={v.versionId} className="row">
+          {[...trail].reverse().map((step) => (
+            <div key={step.versionId} className="row">
               <div className="hd">
                 <span className="eyebrow">
-                  {v.type} v{versions.length - i}
+                  {step.type} v{step.number}
+                  {step.retyped && ' \u00b7 retyped'}
                 </span>
                 <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-3)' }}>
-                  {v.authoredBy} · {new Date(v.at).toLocaleTimeString()}
+                  {step.summary === null
+                    ? 'first version'
+                    : step.summary.rewritten
+                      ? 'rewritten'
+                      : `+${step.summary.added} \u2212${step.summary.removed}`}
+                  {' \u00b7 '}{new Date(step.at).toLocaleTimeString()}
                 </span>
               </div>
-              <p>{v.text}</p>
+
+              {/*
+                The diff, not the text, once there is one to show: a list of
+                full sentences is the clutter this view is meant to avoid.
+              */}
+              {step.diff === null
+                ? <p>{step.text}</p>
+                : step.summary?.added === 0 && step.summary.removed === 0
+                  ? <p style={{ color: 'var(--text-3)' }}>Same words, {step.retyped ? 'new type.' : 'no change.'}</p>
+                  : <Diff spans={step.diff} />}
+
+              {step.prompt !== null && (
+                <p style={{ fontSize: 11.5, color: 'var(--coach)' }}>
+                  after the coach {step.prompt.kind.replace(/_/g, ' ')}: {step.prompt.body.slice(0, 110)}
+                  {step.prompt.body.length > 110 ? '\u2026' : ''}
+                </p>
+              )}
             </div>
           ))}
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * A word-level diff, rendered inline.
+ *
+ * Removals struck through rather than hidden, because the point of keeping every
+ * version is being able to see what was given up.
+ */
+export function Diff({ spans }: { spans: readonly DiffSpan[] }) {
+  return (
+    <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6 }}>
+      {spans.map((span, i) => {
+        if (span.kind === 'same') return <span key={i}>{span.text}</span>;
+        if (span.kind === 'added') {
+          return (
+            <span key={i} style={{ background: 'var(--ext-soft)', color: 'var(--ext)' }}>
+              {span.text}
+            </span>
+          );
+        }
+        return (
+          <span
+            key={i}
+            style={{
+              background: 'var(--brand-soft)', color: 'var(--brand)',
+              textDecoration: 'line-through',
+            }}
+          >
+            {span.text}
+          </span>
+        );
+      })}
+    </p>
   );
 }

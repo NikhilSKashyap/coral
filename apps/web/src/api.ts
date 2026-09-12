@@ -79,7 +79,7 @@ export const writeStage = (
 export const acceptProposal = (
   id: ProjectId,
   proposalId: ProposalId,
-  body: { text: string; relation: Relation },
+  body: { text?: string; relation?: Relation },
 ): Promise<ProjectView> =>
   call(`/projects/${id}/proposals/${proposalId}/accept`, json(body));
 
@@ -108,6 +108,20 @@ export interface SearchResult extends ProjectView {
 /** Real retrieval, with the fixture as the floor. An empty query uses the question. */
 export const searchLiterature = (id: ProjectId, query?: string): Promise<SearchResult> =>
   call(`/projects/${id}/search`, json({ query: query ?? '' }));
+
+export interface DetectResult extends ProjectView {
+  raised: number;
+  skipped: number;
+  provider: ProviderId;
+  fellBackFrom?: ProviderId;
+  reason?: string;
+}
+
+/** Which of the student's own thoughts are already doing the work of a claim. */
+export const detectClaims = (
+  id: ProjectId,
+  provider?: ProviderId,
+): Promise<DetectResult> => call(`/projects/${id}/detect`, json({ provider }));
 
 export const retrievalStatus = (): Promise<{ fullText: boolean; detail: string }> =>
   call('/retrieval');

@@ -9,6 +9,7 @@ import {
   ProposalRefused, acceptProposal, dismissProposal, type AcceptProposalBody,
 } from './proposals.js';
 import { canRetrieveFullText, runSearch, type SearchBody } from './retrieval.js';
+import { detectClaims, type DetectBody } from './detection.js';
 import { MAX_PDF_BYTES, UploadRefused, transcribePassage, uploadPaper } from './upload.js';
 import { appendEvent, createProject, listProjects, loadProject } from './repo.js';
 
@@ -181,6 +182,17 @@ export async function routes(app: FastifyInstance): Promise<void> {
         throw error;
       }
     },
+  );
+
+  /**
+   * Which of the student's thoughts are already doing the work of a claim.
+   *
+   * Raises proposals and nothing else. A thought the student has already ruled
+   * on is skipped, so pressing this twice does not start nagging.
+   */
+  app.post<{ Params: { id: string }; Body: DetectBody }>(
+    '/projects/:id/detect',
+    async (request) => detectClaims(request.params.id as ProjectId, request.body ?? {}),
   );
 
   /** Whether this machine can reach full text at all. */

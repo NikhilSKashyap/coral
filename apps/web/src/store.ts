@@ -6,11 +6,11 @@ import {
   type ProjectId, type ProjectState, type ProposalId, type Relation, type SpineStage,
 } from '@coral/core';
 import {
-  Refused, acceptProposal, askCoach, createProject, dismissProposal, draftFrame, emit,
-  listProjects, listProviders, loadDrift, loadProject, retrievalStatus, searchLiterature,
+  Refused, acceptProposal, askCoach, createProject, detectClaims, dismissProposal, draftFrame,
+  emit, listProjects, listProviders, loadDrift, loadProject, retrievalStatus, searchLiterature,
   transcribePassage, uploadPaper, writeStage,
-  type CoachResponse, type Drift, type ProjectSummary, type ProviderId, type ProviderStatus,
-  type SearchResult,
+  type CoachResponse, type DetectResult, type Drift, type ProjectSummary, type ProviderId,
+  type ProviderStatus, type SearchResult,
 } from './api.js';
 
 export type View = 'frame' | 'map' | 'focus';
@@ -36,7 +36,12 @@ interface Studio {
   setProvider: (provider: ProviderId) => void;
   ask: (objectId: ObjectId, opts: { escalate?: boolean; argue?: boolean; provider?: ProviderId }) => Promise<void>;
   writeStage: (stage: SpineStage, text: string) => Promise<boolean>;
-  acceptProposal: (proposalId: ProposalId, text: string, relation: Relation) => Promise<boolean>;
+  acceptProposal: (
+    proposalId: ProposalId,
+    body: { text?: string; relation?: Relation },
+  ) => Promise<boolean>;
+  detect: () => Promise<void>;
+  lastDetection: DetectResult | null;
   dismissProposal: (proposalId: ProposalId) => Promise<boolean>;
   draftFrame: (answers: Record<string, string>) => Promise<boolean>;
   newProject: (title: string, group: string) => Promise<void>;
@@ -72,6 +77,7 @@ export const useStudio = create<Studio>((set, get) => ({
   busy: false,
   refusal: null,
   lastSearch: null,
+  lastDetection: null,
   fullTextAvailable: null,
 
   refreshProjects: async () => {
@@ -144,12 +150,15 @@ export const useStudio = create<Studio>((set, get) => ({
    * Accepting takes the student's own words; there is no button anywhere that
    * turns a suggestion into a thought without them.
    */
-  acceptProposal: async (proposalId, text, relation) => {
+  acceptProposal: async (proposalId, body) => {
     const { projectId } = get();
-    if (projectId === null || text.trim() === '') return false;
+    if (projectId === null) return false;
     set({ busy: true, refusal: null });
     try {
-      const view = await acceptProposal(projectId, proposalId, { text: text.trim(), relation });
+      const view = await acceptProposal(projectId, proposalId, {
+        ...(body.text === undefined ? {} : { text: body.text.trim() }),
+        ...(body.relation === undefined ? {} : { relation: body.relation }),
+      });
       set({ state: view.state, events: view.events, record: view.record, busy: false });
       return true;
     } catch (error) {
@@ -273,6 +282,33 @@ export const useStudio = create<Studio>((set, get) => ({
       set({
         refusal: {
           invariant: error instanceof Refused ? error.invariant : 'retrieval',
+          message: error instanceof Error ? error.message : String(error),
+        },
+        busy: false,
+      });
+    }
+  },
+
+  /**
+   * Ask which thoughts read as claims.
+   *
+   * Raises proposals and nothing else, so the result is always something to
+   * rule on rather than something that happened.
+   */
+  detect: async () => {
+    const { projectId, provider } = get();
+    if (projectId === null) return;
+    set({ busy: true, refusal: null });
+    try {
+      const view = await detectClaims(projectId, provider);
+      set({
+        state: view.state, events: view.events, record: view.record,
+        lastDetection: view, busy: false,
+      });
+    } catch (error) {
+      set({
+        refusal: {
+          invariant: error instanceof Refused ? error.invariant : 'detection',
           message: error instanceof Error ? error.message : String(error),
         },
         busy: false,

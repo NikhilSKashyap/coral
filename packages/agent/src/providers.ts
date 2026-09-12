@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { access, constants } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CONSTITUTION, rungInstruction } from './constitution.js';
+import { DETECTION_INSTRUCTION, DETECTION_SCHEMA } from './detect.js';
 import { RUNG_KIND, SPINE, SPINE_STAGES, type CoachMoveKind } from '@coral/core';
 import { MOVE_SCHEMA, MalformedMove, parseMove, type CoachRequest, type CoachMoveResult } from './move.js';
 
@@ -128,6 +129,14 @@ interface ClaudeResult {
 export interface ClaudeCodeOptions {
   /** An alias the local CLI understands: opus, sonnet, haiku. */
   model?: string;
+  /**
+   * The model for narrow, high-frequency work like claim detection.
+   *
+   * Two jobs, two models. Coaching moves are judgement calls made rarely;
+   * classification is mechanical and runs often, so it does not need the
+   * larger model and should not cost what one costs.
+   */
+  classifier?: string;
   effort?: 'low' | 'medium' | 'high';
   timeoutMs?: number;
 }
@@ -153,6 +162,7 @@ export class ClaudeCodeProvider implements CoachProvider {
   constructor(options: ClaudeCodeOptions = {}) {
     this.options = {
       model: options.model ?? 'sonnet',
+      classifier: options.classifier ?? 'haiku',
       effort: options.effort ?? 'medium',
       timeoutMs: options.timeoutMs ?? 90_000,
     };
@@ -173,18 +183,53 @@ export class ClaudeCodeProvider implements CoachProvider {
       'Return one move.',
     ].join('\n');
 
+    return parseMove(await this.ask(MOVE_SCHEMA, CONSTITUTION, prompt, this.options.model));
+  }
+
+  /**
+   * Claim detection, on the cheapest model available.
+   *
+   * A different job from a coaching move: narrow, mechanical, and run often
+   * enough that the model choice matters. Haiku unless the caller says
+   * otherwise, and thinking effort dropped to low, because there is no
+   * judgement call here — only a reading of what is already on the page.
+   */
+  async detect(prompt: string): Promise<unknown> {
+    return this.ask(
+      DETECTION_SCHEMA,
+      CONSTITUTION,
+      `${DETECTION_INSTRUCTION}\n\n${prompt}`,
+      this.options.classifier,
+      'low',
+    );
+  }
+
+  /**
+   * One constrained call to the student's own install.
+   *
+   * Shared by every job so the three flags that carry the design are applied
+   * once: `--json-schema` constrains generation, `--system-prompt` replaces the
+   * coding persona, and `--restricted` removes the tools that run commands.
+   */
+  private async ask(
+    schema: unknown,
+    system: string,
+    prompt: string,
+    model: string,
+    effort: string = this.options.effort,
+  ): Promise<unknown> {
     const args = [
       '-p',
       '--output-format', 'json',
-      '--json-schema', JSON.stringify(MOVE_SCHEMA),
-      '--system-prompt', CONSTITUTION,
+      '--json-schema', JSON.stringify(schema),
+      '--system-prompt', system,
       '--restricted',
       // Not 1: the model needs a turn to think and another to emit the
       // structured result, and a tight cap makes it exit non-zero with prose
       // instead. The constitution asks for one move; this is only a runaway stop.
       '--max-turns', '6',
-      '--model', this.options.model,
-      '--effort', this.options.effort,
+      '--model', model,
+      '--effort', effort,
       prompt,
     ];
 
@@ -205,8 +250,7 @@ export class ClaudeCodeProvider implements CoachProvider {
       throw new Error(`Claude Code reported an error: ${envelope.result ?? envelope.subtype ?? 'unknown'}`);
     }
 
-    const payload = envelope.structured_output ?? safeParse(envelope.result);
-    return parseMove(payload);
+    return envelope.structured_output ?? safeParse(envelope.result);
   }
 }
 

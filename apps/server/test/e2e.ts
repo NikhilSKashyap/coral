@@ -39,7 +39,6 @@ interface View {
   state: {
     title: string;
     thoughts: Record<string, Thought>;
-    versions: Record<string, Array<{ versionId: string }>>;
     relations: Record<string, { relation: string; removed: boolean }>;
     sources: Record<string, { sourceId: string; cite: string; access: string; title: string }>;
     passages: Record<string, {
@@ -47,6 +46,7 @@ interface View {
     }>;
     snapshots: Record<string, { snapshotId: string }>;
     comments: Record<string, unknown>;
+    versions: Record<string, Array<{ versionId: string; type?: string; text?: string }>>;
     proposals: Record<string, {
       proposalId: string; kind: string; suggestedType: string;
       targetObjectId: string | null; rationale: string;
@@ -384,11 +384,145 @@ async function proposalPath(): Promise<void> {
   }
 }
 
+
+/**
+ * Claim detection and the retype it proposes, slice 04.
+ *
+ * Driven on the built-in reading so the run is deterministic and costs nothing.
+ * What is under test is the write path, which is identical whichever detector
+ * found the candidate: a detected claim is a reading of words the student
+ * already wrote, so accepting it retypes their thought instead of creating one.
+ */
+async function claimsAndVersions(): Promise<void> {
+  console.log('\nclaim detection');
+  const created = await post<View>('/projects', {
+    title: 'AI and independent reasoning', group: 'AI & Learning',
+  });
+  const id = created.json.projectId;
+
+  const idea = uuid();
+  await emit(id, 'student', 'thought.created', {
+    objectId: idea, versionId: uuid(), type: 'IDEA',
+    text: 'Early AI assistance narrows the range of hypotheses students try.',
+    note: '', position: { x: 0, y: 0 },
+  });
+  const question = uuid();
+  await emit(id, 'student', 'thought.created', {
+    objectId: question, versionId: uuid(), type: 'WONDER',
+    text: 'Are they actually learning more?', note: '', position: { x: 0, y: 0 },
+  });
+
+  const detected = await post<View & { raised: number; skipped: number; provider: string }>(
+    `/projects/${id}/detect`, { provider: 'static' },
+  );
+  if (detected.json.raised >= 1) ok('detection raised a candidate', `${detected.json.raised} via ${detected.json.provider}`);
+  else { bad('detection raised a candidate', 'none'); return; }
+
+  const proposal = Object.values(detected.json.state.proposals).find((p) => p.kind === 'claim');
+  if (proposal === undefined) { bad('a claim proposal', 'none raised'); return; }
+
+  if (proposal.targetObjectId === idea) ok('it points at the student\u2019s own thought');
+  else bad('it points at the student\u2019s own thought', 'wrong target');
+
+  if (proposal.status === 'open') ok('and waits, rather than retyping on its own');
+  else bad('it waits', `status ${proposal.status}`);
+
+  // The open question is not a claim, and a shy detector should leave it alone.
+  const onQuestion = Object.values(detected.json.state.proposals)
+    .some((p) => p.targetObjectId === question);
+  if (!onQuestion) ok('an open question is not read as a claim');
+  else bad('an open question is not read as a claim', 'it was flagged');
+
+  // Pressing again must not nag.
+  const again = await post<View & { raised: number; skipped: number }>(
+    `/projects/${id}/detect`, { provider: 'static' },
+  );
+  if (again.json.raised === 0) ok('detecting twice raises nothing new', `${again.json.skipped} already ruled on`);
+  else bad('detecting twice raises nothing new', `${again.json.raised} raised again`);
+
+  console.log('\naccepting a detected claim');
+  await refuse('a coach retyping the student\u2019s thought', id, 'coach', 'thought.retyped', {
+    objectId: idea, versionId: uuid(),
+    parentVersionId: detected.json.state.thoughts[idea]?.currentVersionId, type: 'CLAIM',
+  });
+
+  const before = detected.json.state.thoughts[idea];
+  const accepted = await post<View>(`/projects/${id}/proposals/${proposal.proposalId}/accept`, {});
+  if (accepted.status !== 200) {
+    bad('accepting a detected claim', `status ${accepted.status} ${accepted.json.message ?? ''}`);
+    return;
+  }
+  const after = accepted.json.state.thoughts[idea];
+
+  if (after?.type === 'CLAIM') ok('the thought becomes a claim');
+  else bad('the thought becomes a claim', `type ${after?.type}`);
+
+  if (after?.objectId === before?.objectId) ok('and keeps the identity it already had');
+  else bad('identity', 'a second identity was minted');
+
+  if (after?.text === before?.text) ok('its words are untouched', 'accepting is a decision, not a rewrite');
+  else bad('its words are untouched', 'the text changed');
+
+  const versions = accepted.json.state.versions[idea] ?? [];
+  if (versions.length === 2) ok('the retype is a new version against that identity', 'v1 \u2192 v2');
+  else bad('the retype mints one version', `${versions.length} versions`);
+
+  if (accepted.json.record['claimsFromDetection'] === 1
+      && accepted.json.record['claimsCreated'] === 1) {
+    ok('the record counts a claim however it arrived', 'created=1, fromDetection=1');
+  } else {
+    bad('the record counts the claim', JSON.stringify(accepted.json.record));
+  }
+
+  console.log('\nrevising while accepting');
+  const second = uuid();
+  await emit(id, 'student', 'thought.created', {
+    objectId: second, versionId: uuid(), type: 'IDEA',
+    // Phrased so the built-in reading catches it: the shy detector looks for a
+    // verb that commits to something, and recall is not what is under test here.
+    text: 'Drafting with AI reduces how well graduate students handle conflicting sources.',
+    note: '', position: { x: 0, y: 0 },
+  });
+  const round = await post<View & { raised: number }>(`/projects/${id}/detect`, { provider: 'static' });
+  const next = Object.values(round.json.state.proposals)
+    .find((p) => p.kind === 'claim' && p.status === 'open' && p.targetObjectId === second);
+  if (next === undefined) { bad('a second candidate', 'none'); return; }
+
+  const sharpened = 'Drafting with AI reduces how well graduate students handle conflicting sources unaided.';
+  const revised = await post<View>(`/projects/${id}/proposals/${next.proposalId}/accept`, {
+    text: sharpened,
+  });
+  const sharp = revised.json.state.thoughts[second];
+  if (sharp?.text === sharpened && sharp.type === 'CLAIM') {
+    ok('accepting can revise in the same breath', 'v1 \u2192 v3');
+  } else {
+    bad('accepting with a revision', `${sharp?.type} / ${sharp?.text.slice(0, 40) ?? ''}`);
+  }
+  if ((revised.json.state.versions[second] ?? []).length === 3) {
+    ok('the revision and the retype are separate versions');
+  } else {
+    bad('revision then retype', `${(revised.json.state.versions[second] ?? []).length} versions`);
+  }
+
+  console.log('\narchive keeps the record');
+  await emit(id, 'student', 'thought.archived', { objectId: second });
+  const archived = await get<View>(`/projects/${id}`);
+  const gone = archived.state.thoughts[second];
+  if (gone?.archived === true && gone.text === sharpened) {
+    ok('an archived claim stays on the map with its history', `${(archived.state.versions[second] ?? []).length} versions kept`);
+  } else {
+    bad('archive', 'the claim or its text disappeared');
+  }
+  if (archived.record['claimsArchived'] === 1) ok('and is counted as archived, not deleted');
+  else bad('claimsArchived', String(archived.record['claimsArchived']));
+}
+
 async function main(): Promise<void> {
   console.log(`\ncoral end-to-end  ${BASE}\n`);
 
   await framingWalk();
   await proposalPath();
+  await claimsAndVersions();
 
 
   console.log('project');

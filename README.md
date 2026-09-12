@@ -34,9 +34,9 @@ Open http://localhost:5173, press **New question**, and build a map.
 ## Testing it
 
 ```bash
-pnpm test                                   # 83 unit tests: 56 over the invariants, 27 over the agent boundary
+pnpm test                                   # 118 unit tests: 82 over the invariants, 36 over the agent boundary
 pnpm --filter @coral/server test:db        # the five guards Postgres enforces
-pnpm --filter @coral/server test:e2e       # 83 checks over a whole session
+pnpm --filter @coral/server test:e2e       # 99 checks over a whole session
 pnpm --filter @coral/server probe "a query" # what retrieval returns, and at what level
 ```
 
@@ -89,6 +89,52 @@ slice: the ladder either teaches before it costs anything, or it does not teach.
 - The **Problem Frame** is a template fill over objects that already exist. The
   question is your thought word for word, and a refinement prompt you did not
   answer stays a gap rather than becoming prose.
+
+## A detected claim is a reading, not a rewrite
+
+Press **Which of these read as claims?** and the coach looks over the thoughts
+you have written and says which ones are already doing a claim's work: asserting
+something that could be disagreed with and would need evidence to hold up.
+
+It raises proposals and stops. Accepting one **retypes your own thought** — the
+same object, one version later, now a claim. The words do not change unless you
+change them, which is why the accept button says *Yes, it's a claim* rather than
+asking you to write anything. *Revise it first* lets you sharpen the sentence in
+the same breath; the revision and the retype are separate versions, so the record
+shows both.
+
+A coach cannot do this. `thought.retyped` is a student-authored event, because
+changing what a thought *is* changes what you are committed to — invariant i
+wearing a different hat. Detection that has already been ruled on is never
+raised again, so pressing the button twice does not nag.
+
+This is the cheap, high-frequency half of the coach, so it runs on the smallest
+model available — `haiku` on the Claude Code adapter, against a schema that
+points at a numbered row rather than naming an object id. A model cannot invent
+a row that resolves to something real, and the schema carries no text anywhere,
+so detection cannot smuggle in a claim of its own. With no agent installed, a
+deliberately shy built-in reading answers instead: it flags an idea that states
+something, and misses plenty, which is the right trade when a false positive
+costs the student attention.
+
+## Version history is a record, not clutter
+
+Splitting identity from version bought a promise the interface owed from slice
+00, and this is where it is paid. A thought's history shows **what moved**, not a
+list of whole sentences: a word-level diff with removals struck through, the
+counts that summarise it, and the coach move that prompted the revision where
+there was one.
+
+```
+CLAIM v3 · retyped     +0 −0     Same words, new type.
+IDEA v2                +3 −1     …hypotheses graduate students try. try unaided.
+                                 after the coach ask: Which students, and narrows compared with what?
+IDEA v1            first version  Early AI assistance narrows the range of hypotheses students try.
+```
+
+The instructor's panel uses the same diff for the comparison a comment has always
+owed the student: not *3 revisions since* but the words that moved between the
+version that was read and the one that is live.
 
 ## A source is not evidence
 
@@ -254,6 +300,7 @@ system implies text it never retrieved has nowhere to live.
 | `POST /projects/:id/spine` | one stage of the framing walk, with its relation and its two coach moves |
 | `POST /projects/:id/frame` | assemble the Problem Frame from existing objects |
 | `POST /projects/:id/coach` | one move from the student's own agent, written through the guards |
+| `POST /projects/:id/detect` | which of the student's thoughts already read as claims |
 | `POST /projects/:id/proposals/:pid/accept` | the student writes the thought a proposal stands for |
 | `POST /projects/:id/proposals/:pid/dismiss` | decline it, on the record |
 | `POST /projects/:id/search` | OpenAlex, with the fixture as the floor; an empty query uses the question |
@@ -302,12 +349,21 @@ would add a canonical citation string and a plain-text abstract, neither of
 which was worth a second service yet. Semantic Scholar's `tldr` is deliberately
 not used: it is a generated summary, and there is no provenance for that.
 
-**Next.** Slice 04 is claims and versions — detection as a proposal, the accept
-decision, revise into a new version against a stable identity, archive without
-deletion. Most of its machinery is already standing: the proposal path landed in
-slice 02 and identity-versus-version in slice 00, so the slice is mostly the
-claim-detection classifier and the interface that makes version history read as
-a record rather than as clutter.
+**Done (slice 04).** Claims and versions. Detection runs on the smallest model
+and raises proposals; accepting one retypes the student's own thought, keeping
+the identity and minting a version. Version history became a diff rather than a
+list, and the instructor's comment finally shows what moved since it was read.
+
+Two gaps the slice closed by accident, both found by running it: `thought.retyped`
+was not in `STUDENT_AUTHORED_EVENTS`, so a coach retyping a student's thought was
+stopped only by a database constraint and not by the guard the browser runs; and
+`claimsCreated` counted only thoughts typed as claims from the start, so a claim
+that arrived by retype was invisible to the instructor's panel.
+
+**Next.** Slice 05 is synthesis and the brief: contradiction and gap detection
+across claims, question refinement against the original, and the Reasoning Brief
+assembled strictly from existing objects. The detection machinery built here is
+the shape the contradiction scan will take.
 
 Known gaps: there is no auth, and the three seats are fixed rows. The Codex
 adapter is written but still unverified, since Codex is not installed here.

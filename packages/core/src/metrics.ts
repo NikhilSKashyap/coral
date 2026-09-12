@@ -11,7 +11,10 @@ import type { ProjectState } from './types.js';
  * reasoning; nothing in this module describes the person.
  */
 export interface ObservableRecord {
+  /** Claims the student has, however they arrived: typed as one, or retyped into one. */
   claimsCreated: number;
+  /** Of those, how many began as another kind of thought the coach read as a claim. */
+  claimsFromDetection: number;
   claimsRevised: number;
   claimsArchived: number;
   claimsWithoutEvidence: number;
@@ -51,6 +54,7 @@ export function observableRecord(
   const savedSources = Object.values(state.sources).filter((s) => s.saved);
 
   let claimsCreated = 0;
+  let claimsFromDetection = 0;
   let claimsRevised = 0;
   let claimsArchived = 0;
   let evidenceCreated = 0;
@@ -68,6 +72,14 @@ export function observableRecord(
         break;
       case 'evidence.created':
         evidenceCreated += 1;
+        break;
+      case 'thought.retyped':
+        // A retype is how a detected claim is accepted, so a claim can arrive
+        // without a thought.created that ever said CLAIM.
+        if (event.payload.type === 'CLAIM') {
+          claimsCreated += 1;
+          claimsFromDetection += 1;
+        }
         break;
       case 'thought.revised': {
         const t = typeOf(event.payload.objectId);
@@ -98,6 +110,7 @@ export function observableRecord(
 
   return {
     claimsCreated,
+    claimsFromDetection,
     claimsRevised,
     claimsArchived,
     claimsWithoutEvidence: claimsWithoutEvidence(state).length,

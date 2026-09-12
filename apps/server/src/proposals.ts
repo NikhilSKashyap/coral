@@ -1,7 +1,7 @@
 import {
   RELATIONS, coachMoves,
   type MoveId, type ObjectId, type ProjectId, type ProposalId, type Relation,
-  type RelationId, type VersionId,
+  type RelationId, type ThoughtType, type VersionId,
 } from '@coral/core';
 import { appendEvent, loadProject, type ProjectView } from './repo.js';
 
@@ -18,10 +18,17 @@ import { appendEvent, loadProject, type ProjectView } from './repo.js';
  */
 
 export interface AcceptProposalBody {
-  /** The student's words. The proposal contributed a type, never a sentence. */
-  text: string;
+  /**
+   * The student's words.
+   *
+   * Required for a branch or a challenge, which create a thought that did not
+   * exist. Optional for a detected claim, where the words are already the
+   * student's and accepting only changes how the thought is typed — passing
+   * text there revises it in the same breath.
+   */
+  text?: string;
   /** Chosen by the student. The coach's suggestion is a default in the UI, not a decision. */
-  relation: Relation;
+  relation?: Relation;
 }
 
 /**
@@ -45,7 +52,7 @@ function promptingMove(view: ProjectView, target: ObjectId | null): MoveId | nul
   return [...coachMoves(view.state)]
     .reverse()
     .find((m) => m.targetObjectId === target
-      && (m.kind === 'propose_branch' || m.kind === 'challenge'))
+      && (m.kind === 'propose_branch' || m.kind === 'challenge' || m.kind === 'flag'))
     ?.moveId ?? null;
 }
 
@@ -61,18 +68,30 @@ export async function acceptProposal(
     throw new ProposalRefused(`proposal ${proposalId} is already ${proposal.status}`);
   }
 
-  const text = body.text.trim();
+  const text = (body.text ?? '').trim();
+  const target = proposal.targetObjectId;
+
+  /**
+   * A detected claim is a reading of words the student already wrote, so
+   * accepting it retypes their thought rather than creating a new one. There is
+   * no authorship question to answer: nothing new is written unless they choose
+   * to revise at the same time.
+   */
+  if (proposal.kind === 'claim') {
+    if (target === null) throw new ProposalRefused('a detected claim must name a thought');
+    return acceptDetectedClaim(projectId, proposalId, target, proposal.suggestedType, text, before);
+  }
+
   if (text === '') {
     throw new ProposalRefused(
       'a proposal is accepted by writing the thought, not by agreeing to it',
     );
   }
-  if (!(RELATIONS as readonly string[]).includes(body.relation)) {
+  if (body.relation === undefined || !(RELATIONS as readonly string[]).includes(body.relation)) {
     throw new ProposalRefused(`"${String(body.relation)}" is not one of the eight relations`);
   }
 
   const objectId = crypto.randomUUID() as ObjectId;
-  const target = proposal.targetObjectId;
 
   let view = await appendEvent(projectId, {
     actor: 'student',
@@ -107,6 +126,62 @@ export async function acceptProposal(
     actor: 'student',
     type: 'proposal.accepted',
     payload: { proposalId, objectId },
+  });
+}
+
+/**
+ * Accept a detected claim: retype the student's own thought.
+ *
+ * Ordered so nothing is ever half-done. An optional revision goes first, since
+ * `assertStableIdentity` requires each write to branch from the version that is
+ * current; the retype follows; the proposal closes last. Every one of these is
+ * a student action, because every one of them is a decision about their words.
+ */
+async function acceptDetectedClaim(
+  projectId: ProjectId,
+  proposalId: ProposalId,
+  target: ObjectId,
+  suggestedType: ThoughtType,
+  text: string,
+  before: ProjectView,
+): Promise<ProjectView> {
+  const thought = before.state.thoughts[target];
+  if (thought === undefined) throw new ProposalRefused(`unknown thought ${target}`);
+  if (thought.type === suggestedType) {
+    throw new ProposalRefused(`that thought is already a ${suggestedType.toLowerCase()}`);
+  }
+
+  let view = before;
+  let parentVersionId = thought.currentVersionId;
+  const promptedBy = promptingMove(before, target);
+
+  if (text !== '' && text !== thought.text) {
+    const versionId = crypto.randomUUID() as VersionId;
+    view = await appendEvent(projectId, {
+      actor: 'student',
+      type: 'thought.revised',
+      promptedBy,
+      payload: { objectId: target, versionId, parentVersionId, text, note: thought.note },
+    });
+    parentVersionId = versionId;
+  }
+
+  view = await appendEvent(projectId, {
+    actor: 'student',
+    type: 'thought.retyped',
+    promptedBy,
+    payload: {
+      objectId: target,
+      versionId: crypto.randomUUID() as VersionId,
+      parentVersionId,
+      type: suggestedType,
+    },
+  });
+
+  return appendEvent(projectId, {
+    actor: 'student',
+    type: 'proposal.accepted',
+    payload: { proposalId, objectId: target },
   });
 }
 

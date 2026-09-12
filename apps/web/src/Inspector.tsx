@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
-  RELATIONS, THOUGHT_TYPES, canBackEvidence, coachMoves, hintLevelFor, liveThoughts,
-  openProposals,
+  RELATIONS, THOUGHT_TYPES, canBackEvidence, coachMoves, diffSinceReview, hintLevelFor,
+  liveThoughts, openProposals,
   type CommentId, type ObjectId, type PassageId, type Proposal,
   type Relation, type RelationId, type SnapshotId, type Source, type ThoughtType,
   type VersionId,
 } from '@coral/core';
+import { Diff } from './FocusView.js';
 import { useStudio, uuid } from './store.js';
 
 type Tab = 'build' | 'sources' | 'coach' | 'review';
@@ -432,6 +433,8 @@ function CoachTab() {
   const provider = useStudio((s) => s.provider);
   const setProvider = useStudio((s) => s.setProvider);
   const lastMove = useStudio((s) => s.lastMove);
+  const detect = useStudio((s) => s.detect);
+  const lastDetection = useStudio((s) => s.lastDetection);
   const refreshProviders = useStudio((s) => s.refreshProviders);
 
   useEffect(() => { void refreshProviders(); }, [refreshProviders]);
@@ -493,6 +496,19 @@ function CoachTab() {
                     onClick={() => void ask(thought.objectId, { argue: true })}>
               Argue with this thought
             </button>
+            <button className="btn" disabled={busy} onClick={() => void detect()}>
+              Which of these read as claims?
+            </button>
+            {lastDetection !== null && (
+              <span className="empty">
+                {lastDetection.raised === 0
+                  ? 'Nothing new reads as a claim right now.'
+                  : `${lastDetection.raised} on the table.`}
+                {lastDetection.skipped > 0 && ` ${lastDetection.skipped} already ruled on.`}
+                {lastDetection.fellBackFrom !== undefined
+                  && ` ${lastDetection.fellBackFrom} could not classify, so the built-in reading did.`}
+              </span>
+            )}
             <p className="empty">
               Support climbs one rung at a time and only when you ask. The coach will not
               write the thought, whichever model is behind it.
@@ -565,73 +581,137 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
   const accept = useStudio((s) => s.acceptProposal);
   const dismissProposal = useStudio((s) => s.dismissProposal);
 
+  const detected = proposal.kind === 'claim';
+  const target = proposal.targetObjectId === null
+    ? undefined
+    : state.thoughts[proposal.targetObjectId];
+
   const [text, setText] = useState('');
+  const [revising, setRevising] = useState(false);
   const [relation, setRelation] = useState<Relation>(
     proposal.kind === 'challenge' ? 'challenges' : 'suggests',
   );
 
-  const target = proposal.targetObjectId === null
-    ? undefined
-    : state.thoughts[proposal.targetObjectId];
+  const label = detected
+    ? `reads as a ${proposal.suggestedType.toLowerCase()}`
+    : proposal.kind === 'challenge' ? 'objection to answer' : 'suggested branch';
 
   return (
     <div className="row" style={{ borderColor: 'var(--coach)' }}>
       <div className="hd">
         <span className="eyebrow" style={{ color: 'var(--coach)' }}>
-          {proposal.kind === 'challenge' ? 'objection to answer' : 'suggested branch'}
-          {' \u00b7 '}{proposal.suggestedType.toLowerCase()}
+          {label}
+          {!detected && ` \u00b7 ${proposal.suggestedType.toLowerCase()}`}
         </span>
       </div>
       <p style={{ color: 'var(--text)' }}>{proposal.rationale}</p>
+
       {target !== undefined && (
         <p style={{ fontSize: 11.5, color: 'var(--text-3)' }}>
-          against: {target.text.slice(0, 90)}{target.text.length > 90 ? '\u2026' : ''}
+          {detected ? 'your ' : 'against: '}
+          {detected && <span className="mono">{target.type.toLowerCase()}</span>}
+          {detected ? ' \u2014 ' : ''}
+          {target.text.slice(0, 90)}{target.text.length > 90 ? '\u2026' : ''}
         </p>
       )}
 
-      <textarea
-        className="field"
-        rows={3}
-        value={text}
-        placeholder={proposal.kind === 'challenge'
-          ? 'Answer the objection in your own words.'
-          : `Write the ${proposal.suggestedType.toLowerCase()} yourself.`}
-        onChange={(e) => setText(e.target.value)}
-        aria-label={`Write the ${proposal.suggestedType.toLowerCase()}`}
-      />
+      {/*
+        A detected claim is a reading of words that are already the student's, so
+        accepting it asks for a decision rather than for a sentence. The two
+        branches below are the whole difference between the kinds.
+      */}
+      {detected ? (
+        <>
+          {revising && (
+            <textarea
+              className="field"
+              rows={3}
+              value={text}
+              placeholder="Sharpen it first, if you want to."
+              onChange={(e) => setText(e.target.value)}
+              aria-label="Revise before accepting"
+            />
+          )}
+          <div className="acts">
+            <button
+              className="btn primary"
+              disabled={busy || (revising && text.trim() === '')}
+              onClick={() => void accept(
+                proposal.proposalId,
+                revising ? { text } : {},
+              )}
+            >
+              {revising ? 'Revise and call it a claim' : `Yes, it\u2019s a ${proposal.suggestedType.toLowerCase()}`}
+            </button>
+            {!revising && (
+              <button
+                className="btn ghost"
+                disabled={busy}
+                onClick={() => { setText(target?.text ?? ''); setRevising(true); }}
+              >
+                Revise it first
+              </button>
+            )}
+            <button
+              className="btn ghost"
+              disabled={busy}
+              onClick={() => void dismissProposal(proposal.proposalId)}
+            >
+              Not this
+            </button>
+          </div>
+          <span className="empty">
+            Your words do not change unless you change them. This only says what kind of thought
+            it is, and it keeps the same identity and history.
+          </span>
+        </>
+      ) : (
+        <>
+          <textarea
+            className="field"
+            rows={3}
+            value={text}
+            placeholder={proposal.kind === 'challenge'
+              ? 'Answer the objection in your own words.'
+              : `Write the ${proposal.suggestedType.toLowerCase()} yourself.`}
+            onChange={(e) => setText(e.target.value)}
+            aria-label={`Write the ${proposal.suggestedType.toLowerCase()}`}
+          />
 
-      <label className="lbl">
-        <span className="eyebrow">How it relates</span>
-        <select
-          className="field"
-          value={relation}
-          onChange={(e) => setRelation(e.target.value as Relation)}
-        >
-          {RELATIONS.map((r) => (
-            <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>
-          ))}
-        </select>
-      </label>
+          <label className="lbl">
+            <span className="eyebrow">How it relates</span>
+            <select
+              className="field"
+              value={relation}
+              onChange={(e) => setRelation(e.target.value as Relation)}
+            >
+              {RELATIONS.map((r) => (
+                <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </label>
 
-      <div className="acts">
-        <button
-          className="btn primary"
-          disabled={busy || text.trim() === ''}
-          onClick={() => void accept(proposal.proposalId, text, relation)}
-        >
-          Write it myself
-        </button>
-        <button
-          className="btn ghost"
-          disabled={busy}
-          onClick={() => void dismissProposal(proposal.proposalId)}
-        >
-          Not this
-        </button>
-      </div>
-      <span className="empty">
-        Declining is recorded too. Nothing is deleted.
-      </span>
+          <div className="acts">
+            <button
+              className="btn primary"
+              disabled={busy || text.trim() === ''}
+              onClick={() => void accept(proposal.proposalId, { text, relation })}
+            >
+              Write it myself
+            </button>
+            <button
+              className="btn ghost"
+              disabled={busy}
+              onClick={() => void dismissProposal(proposal.proposalId)}
+            >
+              Not this
+            </button>
+          </div>
+          <span className="empty">
+            Declining is recorded too. Nothing is deleted.
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -739,14 +819,26 @@ function ReviewTab() {
                   )}
                 </div>
                 <p style={{ color: 'var(--text)' }}>{c.body}</p>
-                {d !== undefined && d.stale && target !== undefined && (
-                  <p>
-                    <strong>Then.</strong>{' '}
-                    {(state.versions[c.objectId] ?? []).find((v) => v.versionId === c.versionId)?.text}
-                    <br />
-                    <strong>Now.</strong> {target.text}
-                  </p>
-                )}
+                {/*
+                  The comparison the identity-versus-version split has owed since
+                  slice 00. Not "3 revisions since" but the words that moved
+                  between what the instructor read and what is live now.
+                */}
+                {d !== undefined && d.stale && target !== undefined && (() => {
+                  const review = diffSinceReview(state, c.objectId, c.versionId as VersionId);
+                  if (review === undefined) return null;
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span className="eyebrow" style={{ color: 'var(--text-3)' }}>
+                        what changed since it was read
+                        {review.summary.rewritten
+                          ? ' \u00b7 rewritten'
+                          : ` \u00b7 +${review.summary.added} \u2212${review.summary.removed}`}
+                      </span>
+                      <Diff spans={review.diff} />
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
