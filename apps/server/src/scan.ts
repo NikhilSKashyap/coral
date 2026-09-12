@@ -29,7 +29,10 @@ export interface ScanResult extends ProjectView {
   /** Flags that were already standing, so a repeated scan does not nag. */
   alreadyStanding: number;
   contradictions: number;
+  /** True only when a model actually read the claims against each other. */
   scannedForContradictions: boolean;
+  /** True when there were fewer than two claims, so there was nothing to read. */
+  nothingToCompare: boolean;
   provider: ProviderId;
   reason?: string;
 }
@@ -99,6 +102,7 @@ export async function scan(projectId: ProjectId, body: ScanBody): Promise<ScanRe
     alreadyStanding,
     contradictions: outcome.pairs.length,
     scannedForContradictions: outcome.provider !== 'static',
+    nothingToCompare: (outcome.reason ?? '').includes('not two claims'),
     provider: outcome.provider,
     ...(outcome.reason === undefined ? {} : { reason: outcome.reason }),
   };

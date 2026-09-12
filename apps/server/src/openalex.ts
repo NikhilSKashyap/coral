@@ -39,6 +39,8 @@ export interface SourceCandidate {
   workId: string;
   /** True when OpenAlex says text exists but we could not hold it. Advisory only. */
   fullTextOffered: boolean;
+  /** Why the text is not in hand, when it was offered and could not be fetched. */
+  fullTextReason?: string | null;
 }
 
 interface OpenAlexWork {
@@ -78,6 +80,15 @@ function citeOf(work: OpenAlexWork): string {
   return year === null || year === undefined ? names : `${names}, ${String(year)}`;
 }
 
+/**
+ * Search goes out anonymous, deliberately.
+ *
+ * An OpenAlex key carries a spending budget, and an authenticated search is
+ * billed against it — so sending the key here turns an occasional anonymous 429
+ * into a permanent "insufficient budget" once the day's allowance is gone. The
+ * key buys full text, which is metered and worth paying for. Metadata search is
+ * free without it.
+ */
 const fetchJson = async (url: string, timeoutMs = 12_000): Promise<unknown> => {
   const signal = AbortSignal.timeout(timeoutMs);
   const res = await fetch(url, { headers: { 'user-agent': UA, accept: 'application/json' }, signal });
@@ -159,12 +170,19 @@ function toCandidate(work: OpenAlexWork): SourceCandidate {
  * paper" rather than a broken promise of a passage.
  */
 async function withPassage(candidate: SourceCandidate): Promise<SourceCandidate> {
-  const passage = await firstParagraph(candidate.workId).catch(() => null);
-  if (passage === null) return candidate;
+  const attempt = await firstParagraph(candidate.workId)
+    .catch((error: unknown) => ({
+      passage: null,
+      reason: error instanceof Error ? error.message : String(error),
+    }));
+
+  if (attempt.passage === null) {
+    return { ...candidate, fullTextReason: attempt.reason };
+  }
 
   return {
     ...candidate,
-    passage,
+    passage: attempt.passage,
     access: accessFrom({
       hasAbstract: candidate.abstract !== null,
       hasRetrievedText: true,
@@ -182,18 +200,34 @@ async function withPassage(candidate: SourceCandidate): Promise<SourceCandidate>
  * Parsed with regular expressions rather than an XML dependency because we want
  * one paragraph and its heading, not a document model.
  */
-export async function firstParagraph(
-  workId: string,
-): Promise<{ text: string; locator: string } | null> {
+export interface PassageAttempt {
+  passage: { text: string; locator: string } | null;
+  /** Why the text is not in hand, when it is not. Surfaced, never swallowed. */
+  reason: string | null;
+}
+
+export async function firstParagraph(workId: string): Promise<PassageAttempt> {
   const key = apiKey();
-  if (key === undefined || workId === '') return null;
+  if (key === undefined) return { passage: null, reason: 'no content key is set' };
+  if (workId === '') return { passage: null, reason: 'the record carries no OpenAlex id' };
 
   const id = workId.replace(/^https?:\/\/openalex\.org\//, '');
   const res = await fetch(`${CONTENT}/works/${id}.grobid-xml`, {
     headers: { 'user-agent': UA, authorization: `Bearer ${key}` },
     signal: AbortSignal.timeout(20_000),
   });
-  if (!res.ok) return null;
+
+  if (!res.ok) {
+    // A budget message is the one worth repeating verbatim: it tells the
+    // student the key is real but spent, which is a different thing from the
+    // paper being closed.
+    const body = await res.text().catch(() => '');
+    const detail = /message"\s*:\s*"([^"]+)/.exec(body)?.[1];
+    return {
+      passage: null,
+      reason: detail ?? `the content service answered ${String(res.status)}`,
+    };
+  }
 
   const xml = decompress(new Uint8Array(await res.arrayBuffer()));
   const body = xml.slice(xml.indexOf('<body'));
@@ -206,12 +240,15 @@ export async function firstParagraph(
       const text = strip(match[1] ?? '');
       if (!quotable(text)) continue;
       return {
-        text: text.slice(0, 1200),
-        locator: heading === '' ? 'body text' : heading.slice(0, 80),
+        passage: {
+          text: text.slice(0, 1200),
+          locator: heading === '' ? 'body text' : heading.slice(0, 80),
+        },
+        reason: null,
       };
     }
   }
-  return null;
+  return { passage: null, reason: 'no quotable paragraph in the retrieved text' };
 }
 
 /**

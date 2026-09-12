@@ -96,7 +96,11 @@ export default function BriefView() {
                 ? 'Nothing new flagged.'
                 : `${lastScan.flagged} flagged.`}
               {lastScan.alreadyStanding > 0 && ` ${lastScan.alreadyStanding} already standing.`}
-              {!lastScan.scannedForContradictions && ' Contradictions were not scanned.'}
+              {!lastScan.scannedForContradictions && (
+                lastScan.nothingToCompare
+                  ? ' Only one claim so far, so there was nothing to read against anything.'
+                  : ' Contradictions were not scanned.'
+              )}
             </span>
           )}
         </div>

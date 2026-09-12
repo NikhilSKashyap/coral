@@ -103,6 +103,8 @@ export interface SearchResult extends ProjectView {
   added: number;
   /** Results whose publisher offers full text that we did not manage to hold. */
   offeredButNotHeld: number;
+  /** Why it could not be held, when every attempt failed the same way. */
+  fullTextReason?: string;
 }
 
 /** Real retrieval, with the fixture as the floor. An empty query uses the question. */
@@ -128,6 +130,7 @@ export interface ScanResult extends ProjectView {
   alreadyStanding: number;
   contradictions: number;
   scannedForContradictions: boolean;
+  nothingToCompare: boolean;
   provider: ProviderId;
   reason?: string;
 }

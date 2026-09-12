@@ -31,6 +31,13 @@ export interface SearchResult extends ProjectView {
   added: number;
   /** How many results OpenAlex said had full text that we declined to claim. */
   offeredButNotHeld: number;
+  /**
+   * Why the text could not be held, when every attempt failed the same way.
+   *
+   * A spent content budget looks exactly like a closed paper from the student's
+   * side unless it is said out loud, and those are very different things.
+   */
+  fullTextReason?: string;
 }
 
 /** The fixture, in the shape retrieval returns, for the offline path. */
@@ -139,6 +146,8 @@ export async function runSearch(
     added += 1;
   }
 
+  const fullTextReason = commonReason(candidates);
+
   return {
     ...view,
     query,
@@ -147,7 +156,20 @@ export async function runSearch(
     found: candidates.length,
     added,
     offeredButNotHeld: candidates.filter((c) => c.fullTextOffered && c.passage === null).length,
+    ...(fullTextReason === undefined ? {} : { fullTextReason }),
   };
 }
 
 export { canRetrieveFullText };
+
+/** The reason shared by every failed full-text fetch, when there is one. */
+function commonReason(candidates: readonly SourceCandidate[]): string | undefined {
+  const reasons = candidates
+    .filter((c) => c.fullTextOffered && c.passage === null)
+    .map((c) => c.fullTextReason)
+    .filter((r): r is string => typeof r === 'string' && r !== '');
+
+  if (reasons.length === 0) return undefined;
+  const first = reasons[0];
+  return reasons.every((r) => r === first) ? first : undefined;
+}

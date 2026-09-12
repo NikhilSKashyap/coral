@@ -251,6 +251,16 @@ function SourcesTab() {
             abstract level until you upload the paper.
           </span>
         )}
+
+        {/*
+          A spent content budget looks exactly like a closed paper unless it is
+          said out loud, and those are very different things.
+        */}
+        {lastSearch?.fullTextReason !== undefined && (
+          <span className="empty" style={{ color: 'var(--brand)' }}>
+            Full text was offered but could not be fetched: {lastSearch.fullTextReason}
+          </span>
+        )}
       </div>
 
       {sources.length === 0 ? (

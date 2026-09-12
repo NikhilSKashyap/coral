@@ -194,7 +194,16 @@ export async function requestContradictions(
   providers: readonly CoachProvider[] = ORDER,
 ): Promise<ContradictionOutcome> {
   const { prompt, refs } = renderClaims(state);
-  if (refs.length < 2) return { pairs: [], provider: 'static' };
+
+  // Nothing to compare is not the same as being unable to compare, and saying
+  // so the same way would report a capability failure where there is none.
+  if (refs.length < 2) {
+    return {
+      pairs: [],
+      provider: 'static',
+      reason: 'there are not two claims to read against each other yet',
+    };
+  }
 
   const provider = providers.find((p) => p.id === preferred);
   if (preferred === 'static' || provider === undefined

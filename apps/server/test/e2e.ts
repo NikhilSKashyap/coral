@@ -40,7 +40,9 @@ interface View {
     title: string;
     thoughts: Record<string, Thought>;
     relations: Record<string, { relation: string; removed: boolean }>;
-    sources: Record<string, { sourceId: string; cite: string; access: string; title: string }>;
+    sources: Record<string, {
+      sourceId: string; cite: string; access: string; title: string; doi: string | null;
+    }>;
     passages: Record<string, {
       passageId: string; sourceId: string; text: string; locator: string; provenance: string;
     }>;
@@ -1023,16 +1025,39 @@ async function main(): Promise<void> {
   if (textWithoutLevel.length === 0) ok('every held passage sits on a level that permits it');
   else bad('every held passage sits on a permitted level', `${textWithoutLevel.length} do not`);
 
+  /**
+   * Always reported, never skipped.
+   *
+   * Retrieval falling back to the fixture is the floor working, not a reason to
+   * quietly drop a check: a skipped assertion reads like a passing one, and the
+   * fallback is exactly the condition worth seeing in the output.
+   */
   if (searched.json.source === 'openalex') {
     ok('offered full text not claimed as held', `${searched.json.offeredButNotHeld} of ${searched.json.found}`);
+  } else {
+    ok('retrieval fell back to the fixture', searched.json.reason ?? 'no reason given');
   }
 
-  // Searching the same question twice must not fill the panel with duplicates.
+  /**
+   * Searching the same question twice must not fill the panel with duplicates.
+   *
+   * Asserted as "nothing is listed twice" rather than "nothing was added",
+   * because OpenAlex does not return a stable result set: the same query can
+   * surface a paper the first call missed, and adding that one is correct
+   * behaviour. What must never happen is the same paper arriving twice.
+   */
   const again = await post<SearchView>(`/projects/${id}/search`, {
     query: 'generative AI literature synthesis graduate students conflicting sources',
   });
-  if (again.json.added === 0) ok('a repeated search adds nothing', `${again.json.found} found, 0 added`);
-  else bad('a repeated search adds nothing', `${again.json.added} added again`);
+  const all = Object.values(again.json.state.sources);
+  const keys = all.map((s2) => (s2.doi ?? s2.title).toLowerCase());
+  const duplicated = keys.filter((k, i) => keys.indexOf(k) !== i);
+
+  if (duplicated.length === 0) {
+    ok('a repeated search lists nothing twice', `${all.length} sources, ${again.json.added} newly added`);
+  } else {
+    bad('a repeated search lists nothing twice', `${duplicated.length} duplicated`);
+  }
 
   // A source the gate is closed on, minted rather than hoped for.
   //
