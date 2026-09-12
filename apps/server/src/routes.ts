@@ -3,6 +3,7 @@ import {
   EVENT_TYPES, RELATIONS, SOURCE_ACCESS, THOUGHT_TYPES, commentDrift,
   type CommentId, type ProjectId,
 } from '@coral/core';
+import { coach, detectProviders, type CoachRequestBody } from './coach.js';
 import { FIXTURE_PAPERS } from './fixtures.js';
 import { appendEvent, createProject, listProjects, loadProject } from './repo.js';
 
@@ -15,6 +16,15 @@ export async function routes(app: FastifyInstance): Promise<void> {
   }));
 
   app.get('/projects', async () => ({ projects: await listProjects() }));
+
+  /** What this machine can run. Coral holds no credential of its own. */
+  app.get('/providers', async () => ({ providers: await detectProviders() }));
+
+  /** One coaching move, produced by the student's own agent. */
+  app.post<{ Params: { id: string }; Body: CoachRequestBody }>(
+    '/projects/:id/coach',
+    async (request) => coach(request.params.id as ProjectId, request.body),
+  );
 
   app.post<{ Body: { title?: string; group?: string } }>('/projects', async (request, reply) => {
     const title = request.body?.title ?? 'Untitled question';

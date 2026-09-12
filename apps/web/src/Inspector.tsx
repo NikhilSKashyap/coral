@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   RELATIONS, THOUGHT_TYPES, canBackEvidence, coachMoves, hintLevelFor, liveThoughts,
-  type CommentId, type HintLevel, type MoveId, type ObjectId, type PassageId,
+  type CommentId, type ObjectId, type PassageId,
   type Relation, type RelationId, type SnapshotId, type Source, type ThoughtType,
   type VersionId,
 } from '@coral/core';
@@ -308,90 +308,111 @@ function SourcesTab() {
 
 /* ------------------------------------------------------------------ */
 
-const LADDER = [
-  { kind: 'reflect', label: 'Reflect it back' },
-  { kind: 'ask', label: 'Ask a question' },
-  { kind: 'offer_structure', label: 'Offer a structure' },
-  { kind: 'offer_sentence_frame', label: 'Offer a sentence frame' },
-] as const;
-
 function CoachTab() {
   const state = useStudio((s) => s.state);
   const selected = useStudio((s) => s.selected);
-  const write = useStudio((s) => s.write);
   const busy = useStudio((s) => s.busy);
+  const ask = useStudio((s) => s.ask);
+  const providers = useStudio((s) => s.providers);
+  const provider = useStudio((s) => s.provider);
+  const setProvider = useStudio((s) => s.setProvider);
+  const lastMove = useStudio((s) => s.lastMove);
+  const refreshProviders = useStudio((s) => s.refreshProviders);
+
+  useEffect(() => { void refreshProviders(); }, [refreshProviders]);
 
   const thought = selected === null ? undefined : state.thoughts[selected];
   const rung = selected === null ? 0 : hintLevelFor(state, selected);
   const moves = coachMoves(state);
-
-  const move = async (kind: typeof LADDER[number]['kind'], level: number, body: string): Promise<void> => {
-    await write('coach', 'coach.moved', {
-      moveId: uuid<MoveId>(), kind, targetObjectId: selected, hintLevel: level as HintLevel, body, flag: null,
-    });
-  };
+  const active = providers.find((p) => p.id === provider);
 
   return (
     <>
       <span className="eyebrow">Epistemic coach</span>
-      <p className="empty" style={{ marginTop: -6 }}>
-        There is no model behind these buttons yet. They exist to exercise the rules the coach will run
-        under: it offers moves, it never writes the thought, and support climbs one rung at a time.
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {providers.map((p) => (
+          <button
+            key={p.id}
+            className="row"
+            aria-current={p.id === provider}
+            onClick={() => p.available && setProvider(p.id)}
+            disabled={!p.available}
+            style={{
+              textAlign: 'left', cursor: p.available ? 'pointer' : 'not-allowed',
+              opacity: p.available ? 1 : 0.5,
+              borderColor: p.id === provider ? 'var(--brand)' : 'var(--border)',
+            }}
+          >
+            <div className="hd">
+              <span style={{ fontSize: 13 }}>{p.label}</span>
+              <span className="tag {p.available ? 'usable' : 'gated'}"
+                    style={{ color: p.available ? 'var(--ext)' : 'var(--text-3)' }}>
+                {p.available ? 'ready' : 'not installed'}
+              </span>
+            </div>
+            <p>{p.detail}</p>
+          </button>
+        ))}
+      </div>
+      <p className="empty" style={{ marginTop: -4 }}>
+        Coral runs no model of its own and stores no key. Moves come from the tool you
+        already signed in to, on this machine, and are billed to you by it.
       </p>
 
       {thought === undefined ? (
         <p className="empty">Select a thought first.</p>
       ) : (
         <>
-          <div className="chips">
-            {LADDER.map((step, i) => (
-              <button
-                key={step.kind}
-                className="chip"
-                disabled={busy}
-                onClick={() => void move(step.kind, i, `${step.label} on: ${thought.text}`)}
-              >
-                rung {i} &middot; {step.label}
-              </button>
-            ))}
+          <div className="divide" style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button className="btn primary" disabled={busy}
+                    onClick={() => void ask(thought.objectId, {})}>
+              {busy ? 'Thinking\u2026' : 'Ask the coach'}
+            </button>
+            <button className="btn" disabled={busy || rung >= 3}
+                    onClick={() => void ask(thought.objectId, { escalate: true })}>
+              Give me more help {rung >= 3 ? '(at the top rung)' : `(rung ${rung} \u2192 ${rung + 1})`}
+            </button>
+            <button className="btn" disabled={busy}
+                    onClick={() => void ask(thought.objectId, { argue: true })}>
+              Argue with this thought
+            </button>
+            <p className="empty">
+              Support climbs one rung at a time and only when you ask. The coach will not
+              write the thought, whichever model is behind it.
+            </p>
           </div>
-          <p className="empty">
-            Reached rung {rung} on this thought. Asking for rung {rung + 2} or beyond is refused.
-          </p>
 
-          <button
-            className="btn"
-            disabled={busy}
-            onClick={() => void write('coach', 'coach.moved', {
-              moveId: uuid<MoveId>(), kind: 'challenge', targetObjectId: selected, hintLevel: 0,
-              body: 'What alternative explanation could produce the same observation?', flag: null,
-            })}
-          >
-            Challenge this thought
-          </button>
-
-          <button
-            className="btn"
-            style={{ borderColor: 'var(--brand)', color: 'var(--brand)' }}
-            disabled={busy}
-            onClick={() => void write('coach', 'thought.created', {
-              objectId: uuid<ObjectId>(), versionId: uuid<VersionId>(), type: 'QUESTION',
-              text: 'A question the coach wrote on the student’s behalf.',
-              note: '', position: { x: 0, y: 0 },
-            })}
-          >
-            Let the coach write a thought
-          </button>
-          <p className="empty" style={{ marginTop: -6 }}>
-            That last one must fail. It is here so the refusal is visible rather than promised.
-          </p>
+          {lastMove !== null && (
+            <div className="row" style={{ borderColor: 'var(--coach)' }}>
+              <div className="hd">
+                <span className="eyebrow" style={{ color: 'var(--coach)' }}>
+                  {lastMove.move.kind.replace(/_/g, ' ')} &middot; rung {lastMove.rung}
+                </span>
+                <span className="mono" style={{ fontSize: 10, color: 'var(--text-3)' }}>
+                  {lastMove.provider}
+                </span>
+              </div>
+              <p style={{ color: 'var(--text)' }}>{lastMove.move.body}</p>
+              {lastMove.move.suggestedType !== undefined && (
+                <p>Suggests a {lastMove.move.suggestedType.toLowerCase()}
+                  {lastMove.move.relation !== undefined && ` (${lastMove.move.relation.replace(/_/g, ' ')})`}.
+                  Write it yourself in the Build tab.</p>
+              )}
+              {lastMove.fellBackFrom !== undefined && (
+                <p style={{ color: 'var(--brand)' }}>
+                  {lastMove.fellBackFrom} could not answer, so the built-in ladder did. {lastMove.reason}
+                </p>
+              )}
+            </div>
+          )}
         </>
       )}
 
       {moves.length > 0 && (
         <div className="thread divide" style={{ paddingTop: 12 }}>
           <span className="eyebrow">Thread</span>
-          {moves.slice(-8).map((m) => (
+          {moves.slice(-6).reverse().map((m) => (
             <div key={m.moveId} className="msg coach">
               <span className="who">{m.kind.replace(/_/g, ' ')} &middot; rung {m.hintLevel}</span>
               {m.body}

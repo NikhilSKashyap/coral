@@ -10,8 +10,10 @@ prototypes kept in `Visual conflict determines build/`.
 
 ```
 packages/core      domain model, event log, projections, invariants  ← the product
+packages/agent     drives the coding agent you already signed in to
 apps/server        Fastify + Postgres; the migration is the same model in SQL
 apps/web           React + Vite studio; Geist and the signal red
+apps/desktop       Tauri shell
 ```
 
 `packages/core` has no dependencies and no I/O. The browser and the server run
@@ -52,6 +54,36 @@ Three things in the interface exist to be tried rather than read:
   both. A paywalled source becomes usable only after **Upload the paper**.
 - **Review tab**, in the instructor seat, shows a comment that survived two
   revisions: *reviewed v1, now v3*, with the text then and the text now.
+
+## The coach runs on your own subscription
+
+Coral holds no API key, runs no inference, and has no account. When you ask for a
+coaching move it drives a coding agent already installed and signed in on your
+machine — Claude Code, or Codex — as a subprocess, and reads one JSON object
+back. The credential, the quota and the bill stay entirely yours.
+
+Three flags carry the design on the Claude Code adapter: `--json-schema`
+constrains generation to a closed set of moves, `--system-prompt` replaces the
+coding-assistant persona with the coach's, and `--restricted` removes the tools
+that run commands, so a coaching call can never touch your files. `--bare` is
+deliberately avoided: it is cheaper but reads only an API key and never your
+signed-in session.
+
+Nothing that comes back is trusted. A returned move is validated against the
+closed set and then written through the same guarded append as every other
+event, so a local model that returns something out of bounds is refused exactly
+as a hand-rolled request would be.
+
+If no agent is installed, the session expires, the quota runs out or the reply is
+malformed, the built-in ladder answers instead. It is the slice-01 coach with no
+model behind it, and it means Coral works offline and on a machine with nothing
+installed.
+
+```bash
+pnpm --filter @coral/agent probe            # the ladder, free
+pnpm --filter @coral/agent probe -- --live  # also calls your agent, spends your quota
+curl localhost:8787/providers               # what this machine can run
+```
 
 ## The model in one paragraph
 

@@ -5,8 +5,9 @@ import {
   type ProjectId, type ProjectState,
 } from '@coral/core';
 import {
-  Refused, createProject, emit, listProjects, loadDrift, loadProject, searchLiterature,
-  type Drift, type ProjectSummary,
+  Refused, askCoach, createProject, emit, listProjects, listProviders, loadDrift,
+  loadProject, searchLiterature,
+  type CoachResponse, type Drift, type ProjectSummary, type ProviderId, type ProviderStatus,
 } from './api.js';
 
 export type View = 'map' | 'focus';
@@ -18,6 +19,9 @@ interface Studio {
   events: DomainEvent[];
   record: ObservableRecord | null;
   drift: Drift[];
+  providers: ProviderStatus[];
+  provider: ProviderId;
+  lastMove: CoachResponse | null;
   selected: ObjectId | null;
   view: View;
   role: Actor;
@@ -25,6 +29,9 @@ interface Studio {
   refusal: { invariant: string; message: string } | null;
 
   refreshProjects: () => Promise<void>;
+  refreshProviders: () => Promise<void>;
+  setProvider: (provider: ProviderId) => void;
+  ask: (objectId: ObjectId, opts: { escalate?: boolean; argue?: boolean }) => Promise<void>;
   newProject: (title: string, group: string) => Promise<void>;
   open: (id: ProjectId) => Promise<void>;
   write: (actor: Actor, type: DomainEvent['type'], payload: unknown) => Promise<boolean>;
@@ -44,6 +51,9 @@ export const useStudio = create<Studio>((set, get) => ({
   events: [],
   record: null,
   drift: [],
+  providers: [],
+  provider: 'claude-code',
+  lastMove: null,
   selected: null,
   view: 'map',
   role: 'student',
@@ -53,6 +63,36 @@ export const useStudio = create<Studio>((set, get) => ({
   refreshProjects: async () => {
     const { projects } = await listProjects();
     set({ projects });
+  },
+
+  refreshProviders: async () => {
+    const { providers } = await listProviders();
+    const preferred = providers.find((p) => p.available && p.id !== 'static') ?? providers[providers.length - 1];
+    set({ providers, provider: preferred?.id ?? 'static' });
+  },
+
+  setProvider: (provider) => set({ provider }),
+
+  /**
+   * One coaching move from the student's own agent. Slow by nature — a local
+   * model run is seconds, not milliseconds — so `busy` drives a real wait state.
+   */
+  ask: async (objectId, opts) => {
+    const { projectId, provider } = get();
+    if (projectId === null) return;
+    set({ busy: true, refusal: null });
+    try {
+      const res = await askCoach(projectId, { objectId, ...opts, provider });
+      set({ state: res.state, events: res.events, record: res.record, lastMove: res, busy: false });
+    } catch (error) {
+      set({
+        refusal: {
+          invariant: error instanceof Refused ? error.invariant : 'coach',
+          message: error instanceof Error ? error.message : String(error),
+        },
+        busy: false,
+      });
+    }
   },
 
   newProject: async (title, group) => {

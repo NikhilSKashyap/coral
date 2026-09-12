@@ -70,3 +70,37 @@ export interface Drift {
 
 export const loadDrift = (id: ProjectId): Promise<{ drift: Drift[] }> =>
   call(`/projects/${id}/drift`);
+
+export type ProviderId = 'claude-code' | 'codex' | 'static';
+
+export interface ProviderStatus {
+  id: ProviderId;
+  label: string;
+  available: boolean;
+  detail: string;
+}
+
+export const listProviders = (): Promise<{ providers: ProviderStatus[] }> => call('/providers');
+
+export interface CoachMove {
+  kind: string;
+  body: string;
+  suggestedType?: string;
+  relation?: string;
+  flag?: string;
+  query?: string;
+}
+
+export interface CoachResponse extends ProjectView {
+  move: CoachMove;
+  provider: ProviderId;
+  fellBackFrom?: ProviderId;
+  reason?: string;
+  rung: number;
+}
+
+/** Asks the student's own agent for one move. Coral holds no credential. */
+export const askCoach = (
+  id: ProjectId,
+  body: { objectId: string; escalate?: boolean; argue?: boolean; provider?: ProviderId },
+): Promise<CoachResponse> => call(`/projects/${id}/coach`, json(body));

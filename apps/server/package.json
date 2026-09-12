@@ -13,8 +13,9 @@
     "test:e2e": "tsx test/e2e.ts"
   },
   "dependencies": {
-    "@fastify/cors": "^10.0.2",
+    "@coral/agent": "workspace:*",
     "@coral/core": "workspace:*",
+    "@fastify/cors": "^10.0.2",
     "fastify": "^5.2.1",
     "pg": "^8.13.1"
   },
